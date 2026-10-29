@@ -1,6 +1,6 @@
+from datetime import datetime
 import json
 import os
-from datetime import datetime
 import pandas as pd
 import streamlit as st
 
@@ -11,17 +11,15 @@ st.set_page_config(
     layout="wide",
 )
 
-# Arquivo JSON para persistência centralizada dos dados (para multiusuários)
+# Arquivo JSON para persistência centralizada dos dados (multi-usuário)
 DATA_FILE = "fleet_data.json"
 
 
-# Dados padrão iniciais caso o arquivo não exista
 def load_data():
   if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r", encoding="utf-8") as f:
       return json.load(f)
 
-  # Dados iniciais padrão
   initial_data = {
       "vehicles": [
           {
@@ -58,7 +56,6 @@ def save_data(data):
     json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-# Carrega os dados na sessão
 if "data" not in st.session_state:
   st.session_state.data = load_data()
 
@@ -67,14 +64,14 @@ data = st.session_state.data
 # Cabeçalho Principal
 st.markdown(
     """
-    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 20px; border-bottom: 1px solid #334155;">
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="background-color: #4f46e5; padding: 10px; border-radius: 12px; color: white; font-size: 20px;">
                 🚚
             </div>
             <div>
-                <h1 style="margin: 0; font-size: 22px; font-weight: bold; color: #1e293b;">Hits Acústico</h1>
-                <p style="margin: 0; font-size: 13px; color: #64748b;">Gestão de Manutenção de Frotas (Multi-usuário)</p>
+                <h1 style="margin: 0; font-size: 22px; font-weight: bold; color: #f8fafc;">Hits Acústico</h1>
+                <p style="margin: 0; font-size: 13px; color: #94a3b8;">Gestão de Manutenção de Frotas (Multi-usuário)</p>
             </div>
         </div>
     </div>
@@ -105,7 +102,10 @@ with tab_dash:
   col2.metric("Na Oficina", workshop_v)
   col3.metric("Serviços Realizados", len(data["history"]))
   col4.metric(
-      "Custo Total da Frota", f"R$ {total_cost:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+      "Custo Total da Frota",
+      f"R$ {total_cost:,.2f}".replace(",", "X")
+      .replace(".", ",")
+      .replace("X", "."),
   )
 
   st.markdown("### Status Atual dos Veículos")
@@ -117,12 +117,12 @@ with tab_dash:
       with cols[idx % 3]:
         st.markdown(
             f"""
-                <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                    <h4 style="margin:0 0 5px 0; color:#1e293b;">{v['plate']} - {v['model']}</h4>
-                    <p style="margin:0; font-size:12px; color:#64748b;">Responsável: <b>{v['driver']}</b></p>
-                    <hr style="margin: 8px 0; border:0; border-top:1px solid #f1f5f9;">
-                    <p style="margin:0; font-size:13px;">KM Atual: <b>{v['km']:,} km</b></p>
-                    <p style="margin:0; font-size:13px;">Revisão Preventiva: <b>{v['preventive_km']:,} km</b></p>
+                <div style="background: #1e293b; padding: 18px; border-radius: 14px; border: 1px solid #334155; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+                    <h4 style="margin:0 0 6px 0; color:#f8fafc; font-size: 16px;">{v['plate']} - {v['model']}</h4>
+                    <p style="margin:0; font-size:13px; color:#94a3b8;">Responsável: <b style="color: #e2e8f0;">{v['driver']}</b></p>
+                    <hr style="margin: 10px 0; border:0; border-top:1px solid #334155;">
+                    <p style="margin:0; font-size:13px; color:#cbd5e1;">KM Atual: <b style="color: #38bdf8;">{v['km']:,} km</b></p>
+                    <p style="margin:0; font-size:13px; color:#cbd5e1;">Revisão Preventiva: <b style="color: #facc15;">{v['preventive_km']:,} km</b></p>
                 </div>
                 """,
             unsafe_allow_html=True,
@@ -134,7 +134,6 @@ with tab_dash:
 with tab_workshop:
   st.subheader("Gerenciamento de Oficina")
 
-  # Formulário para registrar entrada
   with st.expander("➕ Registrar Nova Entrada de Veículo na Oficina"):
     with st.form("entry_form"):
       plates = [v["plate"] for v in data["vehicles"]]
@@ -169,16 +168,15 @@ with tab_workshop:
       with st.container():
         st.markdown(
             f"""
-                <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 16px; border-radius: 12px; margin-bottom: 10px;">
-                    <h4 style="margin:0; color: #c53030;">🚨 {item['plate']} (Em Manutenção)</h4>
-                    <p style="margin: 4px 0; font-size: 13px;"><b>Entrada:</b> {item['entry_date']} | <b>KM:</b> {item['km']}</p>
-                    <p style="margin: 4px 0; font-size: 13px;"><b>Problema:</b> {item['reason']}</p>
+                <div style="background: #2a1b1b; border: 1px solid #7f1d1d; padding: 18px; border-radius: 14px; margin-bottom: 15px;">
+                    <h4 style="margin:0; color: #f87171;">🚨 {item['plate']} (Em Manutenção)</h4>
+                    <p style="margin: 6px 0; font-size: 13px; color: #cbd5e1;"><b>Entrada:</b> {item['entry_date']} | <b>KM:</b> {item['km']}</p>
+                    <p style="margin: 6px 0; font-size: 13px; color: #cbd5e1;"><b>Problema:</b> {item['reason']}</p>
                 </div>
                 """,
             unsafe_allow_html=True,
         )
 
-        # Botão de Baixa / Checkout
         with st.form(f"checkout_{item['id']}"):
           st.text("Dados para Finalização (Baixa)")
           exit_km = st.number_input(
@@ -192,7 +190,6 @@ with tab_workshop:
           desc = st.text_area("Descrição detalhada / Peças trocadas")
 
           if st.form_submit_button("Concluir e Dar Baixa"):
-            # Move para o histórico
             history_item = {
                 "plate": item["plate"],
                 "type": "Corretiva",
@@ -205,12 +202,10 @@ with tab_workshop:
                 "description": desc,
             }
             data["history"].append(history_item)
-            # Remove da oficina
             data["workshop"] = [
                 w for w in data["workshop"] if w["id"] != item["id"]
             ]
 
-            # Atualiza o KM do veículo na frota
             for v in data["vehicles"]:
               if v["plate"] == item["plate"]:
                 v["km"] = exit_km
@@ -220,10 +215,10 @@ with tab_workshop:
             st.rerun()
 
 # ---------------------------------------------------------
-# ABA 3: VEÍCULOS & QUILOMETRAGEM
+# ABA 3: VEÍCULOS & QUILOMETRAGEM (COM EDIÇÃO E EXCLUSÃO)
 # ---------------------------------------------------------
 with tab_vehicles:
-  st.subheader("Veículos Cadastrados")
+  st.subheader("Gerenciamento de Veículos & KM")
 
   with st.expander("➕ Adicionar Novo Veículo"):
     with st.form("new_vehicle_form"):
@@ -237,23 +232,82 @@ with tab_vehicles:
 
       if st.form_submit_button("Salvar Veículo"):
         if new_plate:
-          data["vehicles"].append({
-              "plate": new_plate,
-              "model": new_model,
-              "driver": new_driver,
-              "km": new_km,
-              "preventive_km": new_prev,
-          })
-          save_data(data)
-          st.success("Veículo cadastrado com sucesso!")
-          st.rerun()
+          # Evita placa duplicada
+          if any(v["plate"] == new_plate for v in data["vehicles"]):
+            st.error("Já existe um veículo cadastrado com esta placa!")
+          else:
+            data["vehicles"].append({
+                "plate": new_plate,
+                "model": new_model,
+                "driver": new_driver,
+                "km": new_km,
+                "preventive_km": new_prev,
+            })
+            save_data(data)
+            st.success("Veículo cadastrado com sucesso!")
+            st.rerun()
         else:
           st.error("A placa é obrigatória.")
 
-  # Tabela de veículos
-  if data["vehicles"]:
-    df_vehicles = pd.DataFrame(data["vehicles"])
-    st.dataframe(df_vehicles, use_container_width=True)
+  st.markdown("---")
+  st.markdown("### Lista de Veículos Atuais")
+
+  if not data["vehicles"]:
+    st.info("Nenhum veículo cadastrado.")
+  else:
+    for idx, v in enumerate(data["vehicles"]):
+      with st.container():
+        col_info, col_btn1, col_btn2 = st.columns([4, 1, 1])
+
+        with col_info:
+          st.markdown(
+              f"""
+                    <div style="background: #1e293b; padding: 12px 16px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 8px;">
+                        <b>{v['plate']}</b> — {v['model']} | <b>Responsável:</b> {v['driver']} | <b>KM Atual:</b> {v['km']:,} km (Preventiva: {v['preventive_km']:,} km)
+                    </div>
+                    """,
+              unsafe_allow_html=True,
+          )
+
+        with col_btn1:
+          if st.button("✏️ Editar", key=f"edit_{idx}"):
+            st.session_state[f"editing_{v['plate']}"] = True
+
+        with col_btn2:
+          if st.button("🗑️ Excluir", key=f"del_{idx}"):
+            data["vehicles"] = [
+                item for item in data["vehicles"] if item["plate"] != v["plate"]
+            ]
+            save_data(data)
+            st.success(f"Veículo {v['plate']} excluído com sucesso!")
+            st.rerun()
+
+        # Se clicou em editar, abre um formulário integrado para atualizar os dados
+        if st.session_state.get(f"editing_{v['plate']}", False):
+          with st.form(f"form_edit_{v['plate']}"):
+            st.markdown(f"**Editando Veículo: {v['plate']}**")
+            ed_model = st.text_input("Modelo", value=v["model"])
+            ed_driver = st.text_input("Responsável", value=v["driver"])
+            ed_km = st.number_input("KM Atual", min_value=0, value=v["km"])
+            ed_prev = st.number_input(
+                "KM Preventiva", min_value=0, value=v["preventive_km"]
+            )
+
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+              if st.form_submit_button("Salvar Alterações"):
+                v["model"] = ed_model
+                v["driver"] = ed_driver
+                v["km"] = ed_km
+                v["preventive_km"] = ed_prev
+                save_data(data)
+                st.session_state[f"editing_{v['plate']}"] = False
+                st.success("Alterações salvas com sucesso!")
+                st.rerun()
+            with col_s2:
+              if st.form_submit_button("Cancelar"):
+                st.session_state[f"editing_{v['plate']}"] = False
+                st.rerun()
 
 # ---------------------------------------------------------
 # ABA 4: HISTÓRICO DE SERVIÇOS
@@ -267,7 +321,6 @@ with tab_history:
     df_history = pd.DataFrame(data["history"])
     st.dataframe(df_history, use_container_width=True)
 
-    # Botão para exportar dados em CSV/Excel
     csv = df_history.to_csv(index=False).encode("utf-8")
     st.download_button(
         label="📥 Baixar Histórico em CSV (Excel)",
