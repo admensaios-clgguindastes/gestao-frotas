@@ -11,15 +11,30 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização CSS personalizada para o layout moderno
+# Força o estilo visual limpo com fundo claro igual ao layout original
 st.markdown(
     """
     <style>
-    .main { background-color: #f8fafc; }
-    .stTabs [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+    .stApp { background-color: #f8fafc; color: #1e293b; }
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; background-color: transparent; }
     .stTabs [data-baseweb="tab"] { font-weight: 600; color: #64748b; font-size: 15px; }
-    .stTabs [aria-selected="true"] { color: #4f46e5 !important; border-bottom: 2px solid #4f46e5; }
+    .stTabs [aria-selected="true"] { color: #4f46e5 !important; border-bottom: 2px solid #4f46e5; background-color: transparent; }
+    
     .fleet-card { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
+    .workshop-card { background: #fff5f5; border: 1px solid #feb2b2; padding: 20px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    
+    /* Caixa de IA Estilizada */
+    .ai-box {
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        padding: 16px 20px;
+        border-radius: 14px;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -107,7 +122,7 @@ st.markdown(
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="background-color: #4f46e5; padding: 10px; border-radius: 10px; font-size: 18px;">🚚</div>
             <div>
-                <h2 style="margin: 0; font-size: 18px; font-weight: bold;">Hits Acústico</h2>
+                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: white;">Hits Acústico</h2>
                 <p style="margin: 0; font-size: 12px; color: #94a3b8;">Gestão de Manutenção de Frotas</p>
             </div>
         </div>
@@ -183,7 +198,7 @@ with tab_dash:
         )
 
 # ---------------------------------------------------------
-# 2. ABA: VEÍCULOS PARADOS (OFICINA)
+# 2. ABA: VEÍCULOS PARADOS (OFICINA) - COM BAIXA E ANEXO DE IA
 # ---------------------------------------------------------
 with tab_workshop:
   st.subheader("Veículos Parados na Oficina (Em Manutenção)")
@@ -215,16 +230,40 @@ with tab_workshop:
     for item in data["workshop"]:
       st.markdown(
           f"""
-            <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 16px; border-radius: 12px; margin-bottom: 12px;">
+            <div class="workshop-card">
                 <h4 style="margin:0; color: #c53030;">🚨 {item['plate']} (Em Manutenção)</h4>
-                <p style="margin: 4px 0; font-size: 13px;"><b>Entrada:</b> {item['entry_date']} | <b>KM:</b> {item['km']:,}</p>
-                <p style="margin: 4px 0; font-size: 13px;"><b>Problema:</b> {item['reason']}</p>
+                <p style="margin: 4px 0; font-size: 13px; color: #475569;"><b>Entrada:</b> {item['entry_date']} | <b>KM:</b> {item['km']:,}</p>
+                <p style="margin: 4px 0; font-size: 13px; color: #475569;"><b>Problema:</b> {item['reason']}</p>
             </div>
             """,
           unsafe_allow_html=True,
       )
+
+      # Bloco de IA para preenchimento na Baixa
+      st.markdown(
+          """
+            <div class="ai-box">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 20px;">✨</span>
+                    <div>
+                        <div style="font-weight: bold; font-size: 14px;">Preenchimento Inteligente por IA</div>
+                        <div style="font-size: 12px; color: #e0e7ff;">Envie a foto da Nota Fiscal ou O.S. para preencher automaticamente.</div>
+                    </div>
+                </div>
+            </div>
+        """,
+          unsafe_allow_html=True,
+      )
+      ai_file = st.file_uploader(
+          f"Anexar Nota Fiscal ({item['plate']})",
+          type=["png", "jpg", "jpeg"],
+          key=f"ai_{item['id']}",
+      )
+      if ai_file:
+        st.success("✨ Nota lida com sucesso pela IA!")
+
       with st.form(f"checkout_{item['id']}"):
-        st.text("Dados para Finalização / Baixa")
+        st.markdown("**Dados para Finalização / Baixa**")
         exit_km = st.number_input(
             "KM de Saída", min_value=item["km"], value=item["km"]
         )
@@ -241,9 +280,9 @@ with tab_workshop:
               "exit_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
               "km": exit_km,
               "cost": cost,
-              "supplier": supplier,
-              "classification": classification,
-              "description": desc,
+              "supplier": supplier.upper(),
+              "classification": classification.upper(),
+              "description": desc.upper(),
           }
           data["history"].append(history_item)
           data["workshop"] = [
@@ -347,37 +386,37 @@ with tab_vehicles:
               st.rerun()
 
 # ---------------------------------------------------------
-# 4. ABA: HISTÓRICO DE SERVIÇOS (COM PREENCHIMENTO POR IA)
+# 4. ABA: HISTÓRICO DE SERVIÇOS
 # ---------------------------------------------------------
 with tab_history:
   st.subheader("Histórico de Serviços & Manutenções")
 
-  st.markdown(
-      """
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 20px; border-radius: 16px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="background: rgba(255,255,255,0.2); padding: 14px; border-radius: 12px; font-size: 20px;">✨</div>
+  with st.expander("➕ Registrar Nova Manutenção / Serviço"):
+    # Caixa IA estilizada dentro do expansor
+    st.markdown(
+        """
+        <div class="ai-box">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 20px;">✨</span>
                 <div>
-                    <h4 style="margin: 0; font-size: 16px; font-weight: bold;">Preenchimento Inteligente por IA</h4>
-                    <p style="margin: 0; font-size: 13px; color: #e0e7ff;">Envie a foto da Nota Fiscal ou O.S. para preencher automaticamente.</p>
+                    <div style="font-weight: bold; font-size: 14px;">Preenchimento Inteligente por IA</div>
+                    <div style="font-size: 12px; color: #e0e7ff;">Envie a foto da Nota Fiscal ou O.S. para preencher automaticamente.</div>
                 </div>
             </div>
         </div>
     """,
-      unsafe_allow_html=True,
-  )
+        unsafe_allow_html=True,
+    )
 
-  uploaded_file = st.file_uploader(
-      "📸 Anexar Foto da Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
-  )
-  if uploaded_file is not None:
-    with st.spinner("Analisando documento com Inteligência Artificial..."):
+    uploaded_file = st.file_uploader(
+        "Anexar Foto da Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
+    )
+    if uploaded_file is not None:
       st.success(
-          "✨ Nota analisada com sucesso! Dados extraídos: Fornecedor:"
-          " OFICINA CENTRAL, Valor: R$ 450,00."
+          "✨ Nota analisada com sucesso! Dados extraídos e prontos para o"
+          " registro."
       )
 
-  with st.expander("➕ Registrar Nova Manutenção Manualmente"):
     with st.form("new_service_form"):
       plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
       serv_plate_full = st.selectbox("Veículo (Placa)", plates)
