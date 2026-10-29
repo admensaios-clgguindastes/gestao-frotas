@@ -11,11 +11,10 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização CSS com fundo cinza claro e destaques modernos
+# Estilização CSS: Fundo cinza claro e modais limpos com excelente contraste
 st.markdown(
     """
     <style>
-    /* Fundo geral da página em cinza claro */
     .stApp { background-color: #f1f5f9 !important; color: #0f172a !important; }
     
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
@@ -39,7 +38,6 @@ st.markdown(
         background-color: transparent;
     }
     
-    /* Cartões em fundo branco puro para contraste */
     .fleet-card {
         background: #ffffff !important;
         padding: 20px;
@@ -57,7 +55,6 @@ st.markdown(
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     
-    /* Caixa de IA */
     .ai-box {
         background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
         padding: 16px 20px;
@@ -73,7 +70,6 @@ st.markdown(
         color: white !important;
     }
 
-    /* Botões principais com letras em branco */
     .stButton > button, div[data-testid="stFormSubmitButton"] > button {
         background-color: #4f46e5 !important;
         color: #ffffff !important;
@@ -242,32 +238,145 @@ with tab_dash:
         )
 
 # ---------------------------------------------------------
-# 2. ABA: VEÍCULOS PARADOS (OFICINA)
+# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UPS NATIVOS (`st.dialog`)
 # ---------------------------------------------------------
+
+
+@st.dialog("➕ Registrar Entrada de Veículo na Oficina")
+def modal_registrar_entrada():
+  st.markdown(
+      "<h3 style='color: #ffffff !important;'>Registrar Entrada de Veículo na"
+      " Oficina</h3>",
+      unsafe_allow_html=True,
+  )
+  plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Selecione o Veículo</p>",
+      unsafe_allow_html=True,
+  )
+  sel_plate_full = st.selectbox("", plates, label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Quilometragem</p>",
+      unsafe_allow_html=True,
+  )
+  entry_km = st.number_input("", min_value=0, label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Motivo / Problema Relatado</p>",
+      unsafe_allow_html=True,
+  )
+  reason = st.text_area("", label_visibility="collapsed")
+
+  if st.button("Confirmar Entrada"):
+    plate_code = sel_plate_full.split(" - ")[0]
+    new_entry = {
+        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
+        "plate": plate_code,
+        "km": entry_km,
+        "entry_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "reason": reason,
+    }
+    data["workshop"].append(new_entry)
+    save_data(data)
+    st.success("Veículo enviado para a oficina!")
+    st.rerun()
+
+
+@st.dialog("🔧 Dar Baixa / Finalizar Manutenção")
+def modal_dar_baixa(item):
+  st.markdown(
+      "<h3 style='color: #ffffff !important;'>Dar Baixa / Finalizar"
+      " Manutenção</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      f"<p style='color: #ffffff !important;'><b>Veículo:</b>"
+      f" {item['plate']} | <b>Entrada:</b> {item['entry_date']}</p>",
+      unsafe_allow_html=True,
+  )
+
+  st.markdown(
+      """
+        <div class="ai-box">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 20px;">✨</span>
+                <div>
+                    <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal para preencher automaticamente.</div>
+                </div>
+            </div>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Anexar Nota Fiscal / O.S.</p>",
+      unsafe_allow_html=True,
+  )
+  uploaded_nf = st.file_uploader("", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+  if uploaded_nf:
+    st.success("✨ Nota lida com sucesso pela IA!")
+
+  st.markdown(
+      "<p style='color: #ffffff !important;'>KM de Saída</p>",
+      unsafe_allow_html=True,
+  )
+  exit_km = st.number_input(
+      "", min_value=item["km"], value=item["km"], label_visibility="collapsed"
+  )
+  st.markdown(
+      "<p style='color: #ffffff !important;'>valor Total (R$)</p>",
+      unsafe_allow_html=True,
+  )
+  cost = st.number_input(
+      "", min_value=0.0, value=0.0, label_visibility="collapsed"
+  )
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Fornecedor / Oficina</p>",
+      unsafe_allow_html=True,
+  )
+  supplier = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Classificação (ex: Pneus,"
+      " Freios)</p>",
+      unsafe_allow_html=True,
+  )
+  classification = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Descrição detalhada</p>",
+      unsafe_allow_html=True,
+  )
+  desc = st.text_area("", label_visibility="collapsed")
+
+  if st.button("Concluir e Direcionar ao Histórico"):
+    history_item = {
+        "plate": item["plate"],
+        "type": "Corretiva",
+        "entry_date": item["entry_date"],
+        "exit_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "km": exit_km,
+        "cost": cost,
+        "supplier": supplier.upper(),
+        "classification": classification.upper(),
+        "description": desc.upper(),
+    }
+    data["history"].append(history_item)
+    data["workshop"] = [w for w in data["workshop"] if w["id"] != item["id"]]
+
+    for v in data["vehicles"]:
+      if v["plate"] == item["plate"]:
+        v["km"] = exit_km
+
+    save_data(data)
+    st.success("Baixa realizada e enviada para o Histórico!")
+    st.rerun()
+
+
 with tab_workshop:
   st.subheader("Gerenciamento de Oficina")
 
-  with st.expander("➕ Registrar Entrada de Veículo na Oficina"):
-    with st.form("entry_form"):
-      st.markdown("### Registrar Entrada de Veículo na Oficina")
-      plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
-      sel_plate_full = st.selectbox("Selecione o Veículo", plates)
-      entry_km = st.number_input("Quilometragem", min_value=0)
-      reason = st.text_area("Motivo / Problema Relatado")
-
-      if st.form_submit_button("Confirmar Entrada"):
-        plate_code = sel_plate_full.split(" - ")[0]
-        new_entry = {
-            "id": datetime.now().strftime("%Y%m%d%H%M%S"),
-            "plate": plate_code,
-            "km": entry_km,
-            "entry_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "reason": reason,
-        }
-        data["workshop"].append(new_entry)
-        save_data(data)
-        st.success("Veículo enviado para a oficina!")
-        st.rerun()
+  if st.button("➕ Registrar Entrada de Veículo na Oficina"):
+    modal_registrar_entrada()
 
   st.markdown("---")
   if not data["workshop"]:
@@ -285,104 +394,77 @@ with tab_workshop:
           unsafe_allow_html=True,
       )
 
-      with st.expander(f"🔧 Dar Baixa / Finalizar Manutenção ({item['plate']})"):
-        st.markdown(
-            f"<b>Veículo:</b> {item['plate']} | <b>Entrada:</b>"
-            f" {item['entry_date']}",
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            """
-                <div class="ai-box">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 20px;">✨</span>
-                        <div>
-                            <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                            <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal para preencher automaticamente.</div>
-                        </div>
-                    </div>
-                </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        uploaded_nf = st.file_uploader(
-            "Anexar Nota Fiscal / O.S.",
-            type=["png", "jpg", "jpeg"],
-            key=f"nf_{item['id']}",
-        )
-        if uploaded_nf:
-          st.success("✨ Nota lida com sucesso pela IA!")
-
-        with st.form(f"form_checkout_{item['id']}"):
-          exit_km = st.number_input(
-              "KM de Saída", min_value=item["km"], value=item["km"]
-          )
-          cost = st.number_input("valor Total (R$)", min_value=0.0, value=0.0)
-          supplier = st.text_input("Fornecedor / Oficina")
-          classification = st.text_input("Classificação (ex: Pneus, Freios)")
-          desc = st.text_area("Descrição detalhada")
-
-          if st.form_submit_button("Concluir e Direcionar ao Histórico"):
-            history_item = {
-                "plate": item["plate"],
-                "type": "Corretiva",
-                "entry_date": item["entry_date"],
-                "exit_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "km": exit_km,
-                "cost": cost,
-                "supplier": supplier.upper(),
-                "classification": classification.upper(),
-                "description": desc.upper(),
-            }
-            data["history"].append(history_item)
-            data["workshop"] = [
-                w for w in data["workshop"] if w["id"] != item["id"]
-            ]
-
-            for v in data["vehicles"]:
-              if v["plate"] == item["plate"]:
-                v["km"] = exit_km
-
-            save_data(data)
-            st.success("Baixa realizada e enviada para o Histórico!")
-            st.rerun()
+      if st.button(
+          f"🔧 Dar Baixa / Finalizar Manutenção ({item['plate']})",
+          key=f"btn_pop_{item['id']}",
+      ):
+        modal_dar_baixa(item)
 
 # ---------------------------------------------------------
-# 3. ABA: VEÍCULOS & QUILOMETRAGEM
+# 3. ABA: VEÍCULOS & QUILOMETRAGEM (POP-UP DE CADASTRO)
 # ---------------------------------------------------------
+
+
+@st.dialog("➕ Cadastrar Novo Veículo")
+def modal_cadastrar_veiculo():
+  st.markdown(
+      "<h3 style='color: #ffffff !important;'>Cadastrar Novo Veículo</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Placa</p>", unsafe_allow_html=True
+  )
+  new_plate = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Modelo / Van</p>",
+      unsafe_allow_html=True,
+  )
+  new_model = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Técnico / Responsável</p>",
+      unsafe_allow_html=True,
+  )
+  new_driver = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Equipe</p>", unsafe_allow_html=True
+  )
+  new_team = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>KM</p>", unsafe_allow_html=True
+  )
+  new_km = st.number_input("", min_value=0, label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>KM Preventiva (Próx.)</p>",
+      unsafe_allow_html=True,
+  )
+  new_prev = st.number_input("", min_value=0, label_visibility="collapsed")
+
+  if st.button("Salvar veículo"):
+    if new_plate:
+      full_driver = (
+          f"{new_driver.upper()} ({new_team.upper()})"
+          if new_team
+          else new_driver.upper()
+      )
+      data["vehicles"].append({
+          "plate": new_plate.upper(),
+          "model": new_model,
+          "driver": full_driver,
+          "km": new_km,
+          "preventive_km": new_prev,
+      })
+      save_data(data)
+      st.success("Veículo cadastrado!")
+      st.rerun()
+    else:
+      st.error("Informe a placa.")
+
+
 with tab_vehicles:
   st.subheader("Gerenciamento de Veículos & KM")
 
-  with st.expander("➕ Adicionar novos veículos"):
-    with st.form("new_vehicle_form"):
-      st.markdown("### Cadastrar Novo Veículo")
-      new_plate = st.text_input("Placa")
-      new_model = st.text_input("Modelo / Van")
-      new_driver = st.text_input("Técnico / Responsável")
-      new_team = st.text_input("Equipe")
-      new_km = st.number_input("KM", min_value=0)
-      new_prev = st.number_input("KM Preventiva (Próx.)", min_value=0)
-
-      if st.form_submit_button("Salvar veículo"):
-        if new_plate:
-          full_driver = (
-              f"{new_driver.upper()} ({new_team.upper()})"
-              if new_team
-              else new_driver.upper()
-          )
-          data["vehicles"].append({
-              "plate": new_plate.upper(),
-              "model": new_model,
-              "driver": full_driver,
-              "km": new_km,
-              "preventive_km": new_prev,
-          })
-          save_data(data)
-          st.success("Veículo cadastrado!")
-          st.rerun()
-        else:
-          st.error("Informe a placa.")
+  if st.button("➕ Adicionar novos veículos"):
+    modal_cadastrar_veiculo()
 
   st.markdown("---")
   if not data["vehicles"]:
@@ -439,12 +521,12 @@ with tab_vehicles:
 # ---------------------------------------------------------
 # 4. ABA: HISTÓRICO DE SERVIÇOS
 # ---------------------------------------------------------
-with tab_history:
-  st.subheader("Histórico de Serviços & Manutenções")
 
-  with st.expander("➕ Registrar Nova Manutenção Manual"):
-    st.markdown(
-        """
+
+@st.dialog("➕ Registrar Manutenção Manual")
+def modal_manutencao_manual():
+  st.markdown(
+      """
         <div class="ai-box">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 20px;">✨</span>
@@ -455,57 +537,54 @@ with tab_history:
             </div>
         </div>
     """,
-        unsafe_allow_html=True,
-    )
-    uploaded_file = st.file_uploader(
-        "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
-    )
-    if uploaded_file:
-      st.success("✨ Nota lida com sucesso pela IA!")
+      unsafe_allow_html=True,
+  )
+  uploaded_file = st.file_uploader(
+      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
+  )
+  if uploaded_file:
+    st.success("✨ Nota lida com sucesso pela IA!")
 
-    with st.form("new_service_form"):
-      plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
-      serv_plate_full = st.selectbox("Veículo (Placa)", plates)
-      serv_type = st.selectbox(
-          "Tipo de Manutenção", ["Preventiva", "Corretiva"]
-      )
+  plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
+  serv_plate_full = st.selectbox("Veículo (Placa)", plates)
+  serv_type = st.selectbox("Tipo de Manutenção", ["Preventiva", "Corretiva"])
 
-      entry_dt = st.text_input(
-          "Data / Hora de Entrada",
-          value=datetime.now().strftime("%Y-%m-%d %H:%M"),
-      )
-      exit_dt = st.text_input(
-          "Data / Hora de Saída", value=datetime.now().strftime("%Y-%m-%d %H:%M")
-      )
-      km_val = st.number_input("Quilometragem (KM)", min_value=0)
-      cost_val = st.number_input("Valor Total (R$)", min_value=0.0)
-      supplier = st.text_input(
-          "Fornecedor / Oficina", placeholder="Ex: Flancar..."
-      )
-      classification = st.text_input(
-          "Classificação", placeholder="Ex: Troca de Óleo..."
-      )
-      description = st.text_area(
-          "Descrição Detalhada", placeholder="Descreva..."
-      )
+  entry_dt = st.text_input(
+      "Data / Hora de Entrada", value=datetime.now().strftime("%Y-%m-%d %H:%M")
+  )
+  exit_dt = st.text_input(
+      "Data / Hora de Saída", value=datetime.now().strftime("%Y-%m-%d %H:%M")
+  )
+  km_val = st.number_input("Quilometragem (KM)", min_value=0)
+  cost_val = st.number_input("Valor Total (R$)", min_value=0.0)
+  supplier = st.text_input("Fornecedor / Oficina", placeholder="Ex: Flancar...")
+  classification = st.text_input("Classificação", placeholder="Ex: Troca de Óleo...")
+  description = st.text_area("Descrição Detalhada", placeholder="Descreva...")
 
-      if st.form_submit_button("Salvar no Histórico"):
-        plate_code = serv_plate_full.split(" - ")[0]
-        new_hist = {
-            "plate": plate_code,
-            "type": serv_type,
-            "entry_date": entry_dt,
-            "exit_date": exit_dt,
-            "km": km_val,
-            "cost": cost_val,
-            "supplier": supplier.upper(),
-            "classification": classification.upper(),
-            "description": description.upper(),
-        }
-        data["history"].append(new_hist)
-        save_data(data)
-        st.success("Salvo no histórico com sucesso!")
-        st.rerun()
+  if st.button("Salvar no Histórico"):
+    plate_code = serv_plate_full.split(" - ")[0]
+    new_hist = {
+        "plate": plate_code,
+        "type": serv_type,
+        "entry_date": entry_dt,
+        "exit_date": exit_dt,
+        "km": km_val,
+        "cost": cost_val,
+        "supplier": supplier.upper(),
+        "classification": classification.upper(),
+        "description": description.upper(),
+    }
+    data["history"].append(new_hist)
+    save_data(data)
+    st.success("Salvo no histórico com sucesso!")
+    st.rerun()
+
+
+with tab_history:
+  st.subheader("Histórico de Serviços & Manutenções")
+
+  if st.button("➕ Registrar Nova Manutenção Manual"):
+    modal_manutencao_manual()
 
   st.markdown("---")
   if not data["history"]:
