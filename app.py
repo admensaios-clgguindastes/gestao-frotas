@@ -11,81 +11,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização CSS: Fundo cinza claro e modais limpos com excelente contraste
-st.markdown(
-    """
-    <style>
-    .stApp { background-color: #f1f5f9 !important; color: #0f172a !important; }
-    
-    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
-        color: #0f172a !important;
-    }
-    
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-        border-bottom: 1px solid #cbd5e1;
-        padding-bottom: 8px;
-        background-color: transparent;
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-weight: 600;
-        color: #475569 !important;
-        font-size: 15px;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #4f46e5 !important;
-        border-bottom: 2px solid #4f46e5;
-        background-color: transparent;
-    }
-    
-    .fleet-card {
-        background: #ffffff !important;
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid #cbd5e1;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        margin-bottom: 16px;
-    }
-    .workshop-card {
-        background: #fff5f5 !important;
-        border: 1px solid #feb2b2;
-        padding: 20px;
-        border-radius: 16px;
-        margin-bottom: 16px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    
-    .ai-box {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-        padding: 16px 20px;
-        border-radius: 14px;
-        color: white !important;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 16px;
-        box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
-    }
-    .ai-box *, .ai-box h4, .ai-box p, .ai-box div {
-        color: white !important;
-    }
-
-    .stButton > button, div[data-testid="stFormSubmitButton"] > button {
-        background-color: #4f46e5 !important;
-        color: #ffffff !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        border: none !important;
-    }
-    .stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #4338ca !important;
-        color: #ffffff !important;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
-
 DATA_FILE = "fleet_data.json"
 
 
@@ -218,7 +143,7 @@ with tab_dash:
       with cols[idx % 3]:
         st.markdown(
             f"""
-                <div class="fleet-card">
+                <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span style="background: #0f172a; color: #ffffff !important; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 13px;">{plate}</span>
                         <span style="{badge_style} padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">{badge_text}</span>
@@ -238,33 +163,16 @@ with tab_dash:
         )
 
 # ---------------------------------------------------------
-# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UPS NATIVOS (`st.dialog`)
+# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UPS NATIVOS
 # ---------------------------------------------------------
 
 
 @st.dialog("➕ Registrar Entrada de Veículo na Oficina")
 def modal_registrar_entrada():
-  st.markdown(
-      "<h3 style='color: #ffffff !important;'>Registrar Entrada de Veículo na"
-      " Oficina</h3>",
-      unsafe_allow_html=True,
-  )
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Selecione o Veículo</p>",
-      unsafe_allow_html=True,
-  )
-  sel_plate_full = st.selectbox("", plates, label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Quilometragem</p>",
-      unsafe_allow_html=True,
-  )
-  entry_km = st.number_input("", min_value=0, label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Motivo / Problema Relatado</p>",
-      unsafe_allow_html=True,
-  )
-  reason = st.text_area("", label_visibility="collapsed")
+  sel_plate_full = st.selectbox("Selecione o Veículo", plates)
+  entry_km = st.number_input("Quilometragem", min_value=0)
+  reason = st.text_area("Motivo / Problema Relatado")
 
   if st.button("Confirmar Entrada"):
     plate_code = sel_plate_full.split(" - ")[0]
@@ -284,19 +192,12 @@ def modal_registrar_entrada():
 @st.dialog("🔧 Dar Baixa / Finalizar Manutenção")
 def modal_dar_baixa(item):
   st.markdown(
-      "<h3 style='color: #ffffff !important;'>Dar Baixa / Finalizar"
-      " Manutenção</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      f"<p style='color: #ffffff !important;'><b>Veículo:</b>"
-      f" {item['plate']} | <b>Entrada:</b> {item['entry_date']}</p>",
-      unsafe_allow_html=True,
+      f"**Veículo:** {item['plate']} | **Entrada:** {item['entry_date']}"
   )
 
   st.markdown(
       """
-        <div class="ai-box">
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 16px 20px; border-radius: 14px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 20px;">✨</span>
                 <div>
@@ -308,45 +209,17 @@ def modal_dar_baixa(item):
     """,
       unsafe_allow_html=True,
   )
-
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Anexar Nota Fiscal / O.S.</p>",
-      unsafe_allow_html=True,
+  uploaded_nf = st.file_uploader(
+      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
   )
-  uploaded_nf = st.file_uploader("", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
   if uploaded_nf:
     st.success("✨ Nota lida com sucesso pela IA!")
 
-  st.markdown(
-      "<p style='color: #ffffff !important;'>KM de Saída</p>",
-      unsafe_allow_html=True,
-  )
-  exit_km = st.number_input(
-      "", min_value=item["km"], value=item["km"], label_visibility="collapsed"
-  )
-  st.markdown(
-      "<p style='color: #ffffff !important;'>valor Total (R$)</p>",
-      unsafe_allow_html=True,
-  )
-  cost = st.number_input(
-      "", min_value=0.0, value=0.0, label_visibility="collapsed"
-  )
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Fornecedor / Oficina</p>",
-      unsafe_allow_html=True,
-  )
-  supplier = st.text_input("", label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Classificação (ex: Pneus,"
-      " Freios)</p>",
-      unsafe_allow_html=True,
-  )
-  classification = st.text_input("", label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Descrição detalhada</p>",
-      unsafe_allow_html=True,
-  )
-  desc = st.text_area("", label_visibility="collapsed")
+  exit_km = st.number_input("KM de Saída", min_value=item["km"], value=item["km"])
+  cost = st.number_input("valor Total (R$)", min_value=0.0, value=0.0)
+  supplier = st.text_input("Fornecedor / Oficina")
+  classification = st.text_input("Classificação (ex: Pneus, Freios)")
+  desc = st.text_area("Descrição detalhada")
 
   if st.button("Concluir e Direcionar ao Histórico"):
     history_item = {
@@ -385,7 +258,7 @@ with tab_workshop:
     for item in data["workshop"]:
       st.markdown(
           f"""
-            <div class="workshop-card">
+            <div style="background: #fff5f5; border: 1px solid #feb2b2; padding: 20px; border-radius: 16px; margin-bottom: 16px;">
                 <h4 style="margin:0; color: #c53030;">🚨 {item['plate']} (Em Manutenção)</h4>
                 <p style="margin: 4px 0; font-size: 13px; color: #475569;"><b>Veículo:</b> {item['plate']} | <b>Entrada:</b> {item['entry_date']} | <b>KM:</b> {item['km']:,}</p>
                 <p style="margin: 4px 0; font-size: 13px; color: #475569;"><b>Problema:</b> {item['reason']}</p>
@@ -401,43 +274,18 @@ with tab_workshop:
         modal_dar_baixa(item)
 
 # ---------------------------------------------------------
-# 3. ABA: VEÍCULOS & QUILOMETRAGEM (POP-UP DE CADASTRO)
+# 3. ABA: VEÍCULOS & QUILOMETRAGEM
 # ---------------------------------------------------------
 
 
 @st.dialog("➕ Cadastrar Novo Veículo")
 def modal_cadastrar_veiculo():
-  st.markdown(
-      "<h3 style='color: #ffffff !important;'>Cadastrar Novo Veículo</h3>",
-      unsafe_allow_html=True,
-  )
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Placa</p>", unsafe_allow_html=True
-  )
-  new_plate = st.text_input("", label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Modelo / Van</p>",
-      unsafe_allow_html=True,
-  )
-  new_model = st.text_input("", label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Técnico / Responsável</p>",
-      unsafe_allow_html=True,
-  )
-  new_driver = st.text_input("", label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>Equipe</p>", unsafe_allow_html=True
-  )
-  new_team = st.text_input("", label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>KM</p>", unsafe_allow_html=True
-  )
-  new_km = st.number_input("", min_value=0, label_visibility="collapsed")
-  st.markdown(
-      "<p style='color: #ffffff !important;'>KM Preventiva (Próx.)</p>",
-      unsafe_allow_html=True,
-  )
-  new_prev = st.number_input("", min_value=0, label_visibility="collapsed")
+  new_plate = st.text_input("Placa")
+  new_model = st.text_input("Modelo / Van")
+  new_driver = st.text_input("Técnico / Responsável")
+  new_team = st.text_input("Equipe")
+  new_km = st.number_input("KM", min_value=0)
+  new_prev = st.number_input("KM Preventiva (Próx.)", min_value=0)
 
   if st.button("Salvar veículo"):
     if new_plate:
@@ -527,7 +375,7 @@ with tab_vehicles:
 def modal_manutencao_manual():
   st.markdown(
       """
-        <div class="ai-box">
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 16px 20px; border-radius: 14px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span style="font-size: 20px;">✨</span>
                 <div>
