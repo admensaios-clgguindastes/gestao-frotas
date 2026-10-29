@@ -25,7 +25,8 @@ def load_data():
               "plate": "ABC-1234",
               "model": "Fiat Fiorino",
               "driver": "Equipe Som 1",
-              "km": 400000,
+              "km": 40000,
+              "preventive_interval": 10000,
               "preventive_km": 50000,
           },
           {
@@ -33,6 +34,7 @@ def load_data():
               "model": "Renault Master",
               "driver": "Equipe Palco",
               "km": 78000,
+              "preventive_interval": 10000,
               "preventive_km": 80000,
           },
           {
@@ -40,6 +42,7 @@ def load_data():
               "model": "Hyundai HR",
               "driver": "Logística Geral",
               "km": 31000,
+              "preventive_interval": 10000,
               "preventive_km": 40000,
           },
       ],
@@ -85,12 +88,16 @@ tab_dash, tab_workshop, tab_vehicles, tab_history = st.tabs([
 ])
 
 # ---------------------------------------------------------
-# 1. ABA: PAINEL DA FROTA
+# 1. ABA: PAINEL DA FROTA (Com Atualização Rápida de KM e Alertas)
 # ---------------------------------------------------------
 with tab_dash:
   total_v = len(data["vehicles"])
   workshop_v = len(data["workshop"])
-  ok_v = sum(1 for v in data["vehicles"] if v["km"] <= v["preventive_km"])
+  ok_v = sum(
+      1
+      for v in data["vehicles"]
+      if v["km"] <= v.get("preventive_km", 0) - 1000
+  )
   warning_v = total_v - ok_v
 
   avg_hours_str = "0h"
@@ -114,10 +121,27 @@ with tab_dash:
   c1, c2, c3, c4 = st.columns(4)
   c1.metric("Total de Veículos", total_v)
   c2.metric("Na Oficina", workshop_v)
-  c3.metric("Revisão Vencida", warning_v)
+  c3.metric("Revisão Próxima / Vencida", warning_v)
   c4.metric("Tempo Médio na Oficina", avg_hours_str)
 
-  st.markdown("### Status Atual dos Veículos")
+  st.markdown("### Atualização Rápida de KM & Status dos Veículos")
+
+  # Caixa de atualização rápida de KM na primeira página
+  with st.expander("⚡ Atualizar Quilometragem Rápida de um Veículo"):
+    with st.form("quick_km_form"):
+      q_plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
+      sel_q_plate = st.selectbox("Selecione o Veículo", q_plates)
+      new_q_km = st.number_input("Novo KM Atual", min_value=0, value=0)
+      if st.form_submit_button("Atualizar KM"):
+        plate_to_up = sel_q_plate.split(" - ")[0]
+        for v in data["vehicles"]:
+          if v["plate"] == plate_to_up:
+            v["km"] = new_q_km
+        save_data(data)
+        st.success(f"Quilometragem do veículo {plate_to_up} atualizada!")
+        st.rerun()
+
+  st.markdown("---")
 
   if total_v == 0:
     st.info("Nenhum veículo cadastrado.")
@@ -128,14 +152,20 @@ with tab_dash:
     for idx, v in enumerate(data["vehicles"]):
       plate = v["plate"]
       is_in_workshop = plate in workshop_plates
-      is_expired = v["km"] > v["preventive_km"]
+      prev_target = v.get("preventive_km", v["km"] + 10000)
+      km_diff = prev_target - v["km"]
 
       if is_in_workshop:
         badge_style = "background-color: #fee2e2; color: #991b1b;"
         badge_text = "🚨 Na Oficina"
-      elif is_expired:
+      elif km_diff <= 0:
         badge_style = "background-color: #fef3c7; color: #92400e;"
-        badge_text = "⚠ Revisão Vencida"
+        badge_text = "⚠ Revisão Vencida!"
+      elif km_diff <= 1500:
+        badge_style = "background-color: #ffedd5; color: #c2410c;"
+        badge_text = (
+            f"⚠️ Revisão Próxima ({km_diff:,} km restantes)".replace(",", ".")
+        )
       else:
         badge_style = "background-color: #dcfce7; color: #166534;"
         badge_text = "✔ Manutenção OK"
@@ -155,15 +185,17 @@ with tab_dash:
                         <span>KM Atual:</span> <b style="color: #0f172a;">{v['km']:,} km</b>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 13px; color: #334155;">
-                        <span>KM Preventiva:</span> <b style="color: #0f172a;">{v['preventive_km']:,} km</b>
+                        <span>Próx. Revisão:</span> <b style="color: #0f172a;">{prev_target:,} km</b>
                     </div>
                 </div>
-                """,
+                """.replace(
+                ",", "."
+            ),
             unsafe_allow_html=True,
         )
 
 # ---------------------------------------------------------
-# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UPS NATIVOS
+# 2. ABA: VEÍCULOS PARADOS (OFICINA)
 # ---------------------------------------------------------
 
 
@@ -210,7 +242,6 @@ def modal_dar_baixa(item):
       unsafe_allow_html=True,
   )
 
-  # Estado para os dados extraídos pela IA no pop-up de baixa
   ai_key = f"ai_data_{item['id']}"
   if ai_key not in st.session_state:
     st.session_state[ai_key] = {
@@ -218,26 +249,31 @@ def modal_dar_baixa(item):
         "supplier": "",
         "classification": "",
         "desc": "",
+        "m_type": "Corretiva",
     }
 
   uploaded_nf = st.file_uploader(
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key=f"file_{item['id']}"
   )
   if uploaded_nf:
-    # Simulando a leitura inteligente dos dados da nota fiscal anexada
     st.session_state[ai_key] = {
         "cost": 450.00,
         "supplier": "OFICINA CENTRAL DE VEICULOS",
-        "classification": "TROCA DE OLEO E FILTROS",
-        "desc": "SERVICO DE REVISAO GERAL, TROCA DE OLEO E FILTRO DE AR.",
+        "classification": "REVISÃO / ÓLEO",
+        "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
+        "m_type": "Preventiva",
     }
     st.success(
-        "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente"
-        " abaixo."
+        "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente."
     )
 
   vals = st.session_state[ai_key]
 
+  m_type = st.selectbox(
+      "Tipo de Manutenção",
+      ["Corretiva", "Preventiva"],
+      index=1 if vals["m_type"] == "Preventiva" else 0,
+  )
   exit_km = st.number_input("KM de Saída", min_value=item["km"], value=item["km"])
   cost = st.number_input("Valor Total (R$)", min_value=0.0, value=vals["cost"])
   supplier = st.text_input("Fornecedor / Oficina", value=vals["supplier"])
@@ -250,7 +286,7 @@ def modal_dar_baixa(item):
     history_item = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": item["plate"],
-        "type": "Corretiva",
+        "type": m_type,
         "entry_date": item["entry_date"],
         "exit_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "km": exit_km,
@@ -262,12 +298,19 @@ def modal_dar_baixa(item):
     data["history"].append(history_item)
     data["workshop"] = [w for w in data["workshop"] if w["id"] != item["id"]]
 
+    # Atualiza KM do veículo e, se for Preventiva, atualiza a KM da próxima revisão
     for v in data["vehicles"]:
       if v["plate"] == item["plate"]:
         v["km"] = exit_km
+        if m_type == "Preventiva":
+          interval = v.get("preventive_interval", 10000)
+          v["preventive_km"] = exit_km + interval
 
     save_data(data)
-    st.success("Baixa realizada e enviada para o Histórico com sucesso!")
+    st.success(
+        "Baixa realizada, histórico atualizado e quilometragem preventiva"
+        " recalculada!"
+    )
     st.rerun()
 
 
@@ -289,7 +332,9 @@ with tab_workshop:
                 <p style="margin: 4px 0; font-size: 13px; color: #475569;"><b>Veículo:</b> {item['plate']} | <b>Entrada:</b> {item['entry_date']} | <b>KM:</b> {item['km']:,}</p>
                 <p style="margin: 4px 0; font-size: 13px; color: #475569;"><b>Problema:</b> {item['reason']}</p>
             </div>
-            """,
+            """.replace(
+              ",", "."
+          ),
           unsafe_allow_html=True,
       )
 
@@ -300,7 +345,7 @@ with tab_workshop:
         modal_dar_baixa(item)
 
 # ---------------------------------------------------------
-# 3. ABA: VEÍCULOS & QUILOMETRAGEM
+# 3. ABA: VEÍCULOS & QUILOMETRAGEM (Com intervalo de revisão)
 # ---------------------------------------------------------
 
 
@@ -310,8 +355,10 @@ def modal_cadastrar_veiculo():
   new_model = st.text_input("Modelo / Van")
   new_driver = st.text_input("Técnico / Responsável")
   new_team = st.text_input("Equipe")
-  new_km = st.number_input("KM", min_value=0)
-  new_prev = st.number_input("KM Preventiva (Próx.)", min_value=0)
+  new_km = st.number_input("KM Atual", min_value=0)
+  new_interval = st.number_input(
+      "Intervalo KM Preventiva (ex: a cada 10000 km)", min_value=1000, value=10000
+  )
 
   if st.button("Salvar Veículo"):
     if new_plate:
@@ -320,12 +367,14 @@ def modal_cadastrar_veiculo():
           if new_team
           else new_driver.upper()
       )
+      calculated_preventive = new_km + new_interval
       data["vehicles"].append({
           "plate": new_plate.upper(),
           "model": new_model,
           "driver": full_driver,
           "km": new_km,
-          "preventive_km": new_prev,
+          "preventive_interval": new_interval,
+          "preventive_km": calculated_preventive,
       })
       save_data(data)
       st.success("Veículo cadastrado com sucesso!")
@@ -351,9 +400,11 @@ with tab_vehicles:
             f"""
                 <div style="background: white; padding: 12px 16px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                     <div><b style="color:#0f172a;">{v['plate']}</b> — <span style="color:#0f172a;">{v['model']}</span> | <span style="color: #475569;">{v['driver']}</span></div>
-                    <div><b style="color:#0f172a;">KM:</b> {v['km']:,} km</div>
+                    <div><b style="color:#0f172a;">KM:</b> {v['km']:,} km (Próx. Rev: {v.get('preventive_km', 0):,} km)</div>
                 </div>
-                """,
+                """.replace(
+                ",", "."
+            ),
             unsafe_allow_html=True,
         )
       with col_edit:
@@ -374,7 +425,14 @@ with tab_vehicles:
           m_model = st.text_input("Modelo", value=v["model"])
           m_driver = st.text_input("Responsável / Equipe", value=v["driver"])
           m_km = st.number_input("KM Atual", value=v["km"])
-          m_prev = st.number_input("KM Preventiva", value=v["preventive_km"])
+          m_interval = st.number_input(
+              "Intervalo KM Preventiva",
+              value=v.get("preventive_interval", 10000),
+          )
+          m_prev = st.number_input(
+              "KM da Próxima Preventiva",
+              value=v.get("preventive_km", v["km"] + 10000),
+          )
 
           b1, b2 = st.columns(2)
           with b1:
@@ -382,6 +440,7 @@ with tab_vehicles:
               v["model"] = m_model
               v["driver"] = m_driver
               v["km"] = m_km
+              v["preventive_interval"] = m_interval
               v["preventive_km"] = m_prev
               save_data(data)
               st.session_state[f"edit_mode_{v['plate']}"] = False
@@ -414,13 +473,13 @@ def modal_manutencao_manual():
       unsafe_allow_html=True,
   )
 
-  # Estado para os dados extraídos no modal manual
   if "ai_manual" not in st.session_state:
     st.session_state.ai_manual = {
         "cost": 0.0,
         "supplier": "",
         "classification": "",
         "desc": "",
+        "m_type": "Corretiva",
     }
 
   uploaded_file = st.file_uploader(
@@ -430,8 +489,9 @@ def modal_manutencao_manual():
     st.session_state.ai_manual = {
         "cost": 320.00,
         "supplier": "AUTO MECANICA EXPRESS",
-        "classification": "TROCA DE PASTILHAS",
-        "desc": "SUBSTITUICAO DAS PASTILHAS DE FREIO DIANTEIRAS.",
+        "classification": "REVISÃO / PEÇAS",
+        "desc": "TROCA DE ITENS DE DESGASTE.",
+        "m_type": "Preventiva",
     }
     st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
 
@@ -439,7 +499,11 @@ def modal_manutencao_manual():
 
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
   serv_plate_full = st.selectbox("Veículo (Placa)", plates)
-  serv_type = st.selectbox("Tipo de Manutenção", ["Preventiva", "Corretiva"])
+  serv_type = st.selectbox(
+      "Tipo de Manutenção",
+      ["Corretiva", "Preventiva"],
+      index=1 if m_vals["m_type"] == "Preventiva" else 0,
+  )
 
   entry_dt = st.text_input(
       "Data / Hora de Entrada", value=datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -448,7 +512,9 @@ def modal_manutencao_manual():
       "Data / Hora de Saída", value=datetime.now().strftime("%Y-%m-%d %H:%M")
   )
   km_val = st.number_input("Quilometragem (KM)", min_value=0)
-  cost_val = st.number_input("Valor Total (R$)", min_value=0.0, value=m_vals["cost"])
+  cost_val = st.number_input(
+      "Valor Total (R$)", min_value=0.0, value=m_vals["cost"]
+  )
   supplier = st.text_input(
       "Fornecedor / Oficina",
       value=m_vals["supplier"],
@@ -480,8 +546,18 @@ def modal_manutencao_manual():
         "description": description.upper(),
     }
     data["history"].append(new_hist)
+
+    # Atualiza KM do veículo e a preventiva se aplicável
+    for v in data["vehicles"]:
+      if v["plate"] == plate_code:
+        if km_val > v["km"]:
+          v["km"] = km_val
+        if serv_type == "Preventiva":
+          interval = v.get("preventive_interval", 10000)
+          v["preventive_km"] = km_val + interval
+
     save_data(data)
-    st.success("Salvo no histórico com sucesso!")
+    st.success("Salvo no histórico e quilometragem atualizada com sucesso!")
     st.rerun()
 
 
@@ -509,7 +585,9 @@ with tab_history:
                     <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Fornecedor:</b> {h['supplier']} | <b>Classificação:</b> {h['classification']}</p>
                     <p style="margin: 2px 0; font-size: 12px; color: #334155;"><b>Descrição:</b> {h['description']}</p>
                 </div>
-                """,
+                """.replace(
+                ",", "."
+            ),
             unsafe_allow_html=True,
         )
       with col_h_del:
