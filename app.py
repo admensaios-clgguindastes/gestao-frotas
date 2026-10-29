@@ -352,7 +352,6 @@ with tab_vehicles:
 with tab_history:
   st.subheader("Histórico de Serviços & Manutenções")
 
-  # Caixa Estilizada de Preenchimento Inteligente por IA (Igual à imagem)
   st.markdown(
       """
         <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 20px; border-radius: 16px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -368,13 +367,11 @@ with tab_history:
       unsafe_allow_html=True,
   )
 
-  # Botão de upload de foto integrado para simular a IA
   uploaded_file = st.file_uploader(
       "📸 Anexar Foto da Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
   )
   if uploaded_file is not None:
     with st.spinner("Analisando documento com Inteligência Artificial..."):
-      # Simulando o preenchimento automático extraído da imagem
       st.success(
           "✨ Nota analisada com sucesso! Dados extraídos: Fornecedor:"
           " OFICINA CENTRAL, Valor: R$ 450,00."
@@ -449,4 +446,3 @@ with tab_history:
         file_name="historico_manutencao.csv",
         mime="text/csv",
     )
-```[cite: 13]
