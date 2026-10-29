@@ -11,13 +11,13 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização CSS Definitiva: Fundo limpo, botões destacados com letras em branco e modais legíveis
+# Estilização CSS refinada para o tema claro com letras brancas solicitadas nos locais específicos
 st.markdown(
     """
     <style>
     .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
     
-    /* Textos gerais escuros para fundo branco */
+    /* Textos gerais padrão */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #0f172a !important;
     }
@@ -85,12 +85,6 @@ st.markdown(
     .stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
         background-color: #4338ca !important;
         color: #ffffff !important;
-    }
-
-    /* POP-UPS / MODAIS COM TEXTOS LEGÍVEIS E LETRAS BRANCAS NOS BOTÕES */
-    div[data-baseweb="modal"] {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
     }
     </style>
 """,
@@ -171,7 +165,7 @@ tab_dash, tab_workshop, tab_vehicles, tab_history = st.tabs([
 ])
 
 # ---------------------------------------------------------
-# 1. ABA: DASHBOARD DA FROTA
+# 1. ABA: DASHBOARD DA FROTA (Placas com letras brancas)
 # ---------------------------------------------------------
 with tab_dash:
   total_v = len(data["vehicles"])
@@ -179,7 +173,6 @@ with tab_dash:
   ok_v = sum(1 for v in data["vehicles"] if v["km"] <= v["preventive_km"])
   warning_v = total_v - ok_v
 
-  # Tempo médio na oficina em horas e minutos
   avg_hours_str = "0h"
   if data["history"]:
     total_diffs = []
@@ -232,7 +225,7 @@ with tab_dash:
             f"""
                 <div class="fleet-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="background: #0f172a; color: white; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 13px;">{plate}</span>
+                        <span style="background: #0f172a; color: #ffffff !important; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 13px;">{plate}</span>
                         <span style="{badge_style} padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">{badge_text}</span>
                     </div>
                     <h4 style="margin: 0 0 4px 0; color: #0f172a; font-size: 15px;">{v['model']}</h4>
@@ -250,16 +243,33 @@ with tab_dash:
         )
 
 # ---------------------------------------------------------
-# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UP NATIVO
+# 2. ABA: VEÍCULOS PARADOS (OFICINA) - Frases em branco nas janelas
 # ---------------------------------------------------------
 
 
 @st.dialog("➕ Registrar Entrada de Veículo na Oficina")
 def modal_registrar_entrada():
+  st.markdown(
+      "<h3 style='color: #ffffff !important;'>Registrar Entrada de Veículo na"
+      " Oficina</h3>",
+      unsafe_allow_html=True,
+  )
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
-  sel_plate_full = st.selectbox("Selecione o Veículo", plates)
-  entry_km = st.number_input("Quilometragem de Entrada (KM)", min_value=0)
-  reason = st.text_area("Motivo / Problema Relatado")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Selecione o Veículo</p>",
+      unsafe_allow_html=True,
+  )
+  sel_plate_full = st.selectbox("", plates, label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Quilometragem</p>",
+      unsafe_allow_html=True,
+  )
+  entry_km = st.number_input("", min_value=0, label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Motivo / Problema Relatado</p>",
+      unsafe_allow_html=True,
+  )
+  reason = st.text_area("", label_visibility="collapsed")
 
   if st.button("Confirmar Entrada"):
     plate_code = sel_plate_full.split(" - ")[0]
@@ -279,7 +289,14 @@ def modal_registrar_entrada():
 @st.dialog("🔧 Dar Baixa / Finalizar Manutenção")
 def modal_dar_baixa(item):
   st.markdown(
-      f"**Veículo:** {item['plate']} | **Entrada:** {item['entry_date']}"
+      "<h3 style='color: #ffffff !important;'>Dar Baixa / Finalizar"
+      " Manutenção</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      f"<p style='color: #ffffff !important;'><b>Veículo:</b>"
+      f" {item['plate']} | <b>Entrada:</b> {item['entry_date']}</p>",
+      unsafe_allow_html=True,
   )
 
   st.markdown(
@@ -296,17 +313,45 @@ def modal_dar_baixa(item):
     """,
       unsafe_allow_html=True,
   )
-  uploaded_nf = st.file_uploader(
-      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
+
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Anexar Nota Fiscal / O.S.</p>",
+      unsafe_allow_html=True,
   )
+  uploaded_nf = st.file_uploader("", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
   if uploaded_nf:
     st.success("✨ Nota lida com sucesso pela IA!")
 
-  exit_km = st.number_input("KM de Saída", min_value=item["km"], value=item["km"])
-  cost = st.number_input("Valor Total (R$)", min_value=0.0, value=0.0)
-  supplier = st.text_input("Fornecedor / Oficina")
-  classification = st.text_input("Classificação (ex: Pneus, Freios)")
-  desc = st.text_area("Descrição detalhada")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>KM de Saída</p>",
+      unsafe_allow_html=True,
+  )
+  exit_km = st.number_input(
+      "", min_value=item["km"], value=item["km"], label_visibility="collapsed"
+  )
+  st.markdown(
+      "<p style='color: #ffffff !important;'>valor Total (R$)</p>",
+      unsafe_allow_html=True,
+  )
+  cost = st.number_input(
+      "", min_value=0.0, value=0.0, label_visibility="collapsed"
+  )
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Fornecedor / Oficina</p>",
+      unsafe_allow_html=True,
+  )
+  supplier = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Classificação (ex: Pneus,"
+      " Freios)</p>",
+      unsafe_allow_html=True,
+  )
+  classification = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Descrição detalhada</p>",
+      unsafe_allow_html=True,
+  )
+  desc = st.text_area("", label_visibility="collapsed")
 
   if st.button("Concluir e Direcionar ao Histórico"):
     history_item = {
@@ -360,20 +405,45 @@ with tab_workshop:
         modal_dar_baixa(item)
 
 # ---------------------------------------------------------
-# 3. ABA: VEÍCULOS & QUILOMETRAGEM
+# 3. ABA: VEÍCULOS & QUILOMETRAGEM (Textos em branco e botões solicitados)
 # ---------------------------------------------------------
 
 
 @st.dialog("➕ Cadastrar Novo Veículo")
 def modal_cadastrar_veiculo():
-  new_plate = st.text_input("Placa")
-  new_model = st.text_input("Modelo / Van")
-  new_driver = st.text_input("Técnico / Responsável")
-  new_team = st.text_input("Equipe (ex: Equipe 01)")
-  new_km = st.number_input("KM Atual", min_value=0)
-  new_prev = st.number_input("KM Preventiva (Próx.)", min_value=0)
+  st.markdown(
+      "<h3 style='color: #ffffff !important;'>Cadastrar Novo Veículo</h3>",
+      unsafe_allow_html=True,
+  )
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Placa</p>", unsafe_allow_html=True
+  )
+  new_plate = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Modelo / Van</p>",
+      unsafe_allow_html=True,
+  )
+  new_model = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Técnico / Responsável</p>",
+      unsafe_allow_html=True,
+  )
+  new_driver = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>Equipe</p>", unsafe_allow_html=True
+  )
+  new_team = st.text_input("", label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>KM</p>", unsafe_allow_html=True
+  )
+  new_km = st.number_input("", min_value=0, label_visibility="collapsed")
+  st.markdown(
+      "<p style='color: #ffffff !important;'>KM Preventiva (Próx.)</p>",
+      unsafe_allow_html=True,
+  )
+  new_prev = st.number_input("", min_value=0, label_visibility="collapsed")
 
-  if st.button("Salvar Veículo"):
+  if st.button("Salvar veículo"):
     if new_plate:
       full_driver = (
           f"{new_driver.upper()} ({new_team.upper()})"
@@ -397,7 +467,7 @@ def modal_cadastrar_veiculo():
 with tab_vehicles:
   st.subheader("Gerenciamento de Veículos & KM")
 
-  if st.button("➕ Adicionar Novo Veículo"):
+  if st.button("➕ Adicionar novos veículos"):
     modal_cadastrar_veiculo()
 
   st.markdown("---")
@@ -417,10 +487,10 @@ with tab_vehicles:
             unsafe_allow_html=True,
         )
       with col_edit:
-        if st.button("✏️ Editar", key=f"edit_v_{idx}"):
+        if st.button("Editar", key=f"edit_v_{idx}"):
           st.session_state[f"edit_mode_{v['plate']}"] = True
       with col_del:
-        if st.button("🗑️ Excluir", key=f"del_v_{idx}"):
+        if st.button("Excluir", key=f"del_v_{idx}"):
           data["vehicles"] = [
               item for item in data["vehicles"] if item["plate"] != v["plate"]
           ]
@@ -532,5 +602,5 @@ with tab_history:
         "📥 Baixar Histórico em Excel (CSV)",
         data=csv,
         file_name="historico_manutencao.csv",
-        mime="text/csv",
+        mime="text/css",
     )
