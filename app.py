@@ -11,27 +11,28 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização CSS refinada para fundo totalmente branco, textos legíveis e cards modernos
+# Estilização CSS completa para forçar fundo branco e textos escuros legíveis em TUDO (incluindo modais e tabelas)
 st.markdown(
     """
     <style>
-    .stApp { background-color: #f8fafc; color: #0f172a; }
+    /* Fundo geral da aplicação */
+    .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
     
-    /* Forçar cores escuras e legíveis em todos os elementos de texto */
-    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown { color: #0f172a !important; }
+    /* Forçar cores escuras em todos os textos e rótulos */
+    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown, .stTextInput, .stSelectbox { color: #0f172a !important; }
     
-    /* Estilização das abas */
+    /* Abas de navegação */
     .stTabs [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; background-color: transparent; }
     .stTabs [data-baseweb="tab"] { font-weight: 600; color: #64748b !important; font-size: 15px; }
     .stTabs [aria-selected="true"] { color: #4f46e5 !important; border-bottom: 2px solid #4f46e5; background-color: transparent; }
     
-    /* Cartões da frota e oficina */
-    .fleet-card { background: #ffffff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
-    .workshop-card { background: #fff5f5; border: 1px solid #feb2b2; padding: 20px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    /* Cartões */
+    .fleet-card { background: #ffffff !important; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; color: #0f172a !important; }
+    .workshop-card { background: #fff5f5 !important; border: 1px solid #feb2b2; padding: 20px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     
-    /* Caixa de IA Gradiente */
+    /* Caixa de IA */
     .ai-box {
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
         padding: 16px 20px;
         border-radius: 14px;
         color: white !important;
@@ -42,6 +43,13 @@ st.markdown(
         box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
     }
     .ai-box *, .ai-box h4, .ai-box p, .ai-box div { color: white !important; }
+
+    /* Correção para modais e caixas de diálogo do Streamlit */
+    div[data-baseweb="modal"] { background-color: #ffffff !important; color: #0f172a !important; }
+    div[data-testid="stModal"] { background-color: rgba(0, 0, 0, 0.5); }
+    
+    /* Inputs de texto e números com fundo branco */
+    input, textarea, select { background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -58,55 +66,29 @@ def load_data():
   initial_data = {
       "vehicles": [
           {
-              "plate": "LMQ7G36",
-              "model": "415 CDI Sprinter",
-              "driver": "FELIPE GOMES (EQUIPE 01)",
-              "km": 425000,
-              "preventive_km": 432095,
+              "plate": "ABC-1234",
+              "model": "Fiat Fiorino",
+              "driver": "Equipe Som 1",
+              "km": 400000,
+              "preventive_km": 50000,
           },
           {
-              "plate": "LMW9C81",
-              "model": "415 CDI Sprinter",
-              "driver": "LEANDRO ESTEVAM (EQUIPE 06)",
-              "km": 444194,
-              "preventive_km": 439000,
+              "plate": "XYZ-9876",
+              "model": "Renault Master",
+              "driver": "Equipe Palco",
+              "km": 78000,
+              "preventive_km": 80000,
           },
           {
-              "plate": "RJB7H18",
-              "model": "416 CDI Sprinter",
-              "driver": "IAGO ANTUNES (EQUIPE 03)",
-              "km": 248000,
-              "preventive_km": 246305,
-          },
-          {
-              "plate": "RJF5F51",
-              "model": "314 CDI Street F",
-              "driver": "YURI ANTUNES (EQUIPE 05)",
-              "km": 299000,
-              "preventive_km": 296651,
-          },
-          {
-              "plate": "TUH6F74",
-              "model": "417",
-              "driver": "N/A (N/A)",
-              "km": 10465,
-              "preventive_km": 18000,
+              "plate": "DEF-5678",
+              "model": "Hyundai HR",
+              "driver": "Logística Geral",
+              "km": 31000,
+              "preventive_km": 40000,
           },
       ],
       "workshop": [],
-      "history": [
-          {
-              "plate": "LMW9C81",
-              "type": "Corretiva",
-              "entry_date": "2026-10-20 08:00",
-              "exit_date": "2026-10-22 17:00",
-              "km": 444232,
-              "cost": 1302.00,
-              "supplier": "ALTA PERFORMACE",
-              "classification": "PNEUS",
-              "description": "TROCA DOS PNEUS TRASEIROS (ITR)",
-          }
-      ],
+      "history": [],
   }
   save_data(initial_data)
   return initial_data
@@ -155,7 +137,7 @@ with tab_dash:
   ok_v = sum(1 for v in data["vehicles"] if v["km"] <= v["preventive_km"])
   warning_v = total_v - ok_v
 
-  # Cálculo exato do tempo médio de oficina em horas e minutos
+  # Tempo médio na oficina em horas e minutos
   avg_hours_str = "0h"
   if data["history"]:
     total_diffs = []
@@ -226,7 +208,7 @@ with tab_dash:
         )
 
 # ---------------------------------------------------------
-# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UP NATIVO (MODAL)
+# 2. ABA: VEÍCULOS PARADOS (OFICINA) COM POP-UP NATIVO
 # ---------------------------------------------------------
 
 
@@ -285,7 +267,6 @@ def modal_dar_baixa(item):
   desc = st.text_area("Descrição detalhada")
 
   if st.button("Concluir e Direcionar ao Histórico"):
-    # Direciona exatamente para o histórico de serviços
     history_item = {
         "plate": item["plate"],
         "type": "Corretiva",
@@ -300,7 +281,6 @@ def modal_dar_baixa(item):
     data["history"].append(history_item)
     data["workshop"] = [w for w in data["workshop"] if w["id"] != item["id"]]
 
-    # Atualiza KM do veículo
     for v in data["vehicles"]:
       if v["plate"] == item["plate"]:
         v["km"] = exit_km
@@ -510,5 +490,5 @@ with tab_history:
         "📥 Baixar Histórico em Excel (CSV)",
         data=csv,
         file_name="historico_manutencao.csv",
-        mime="text/csv",
+        mime="text/css",
     )
