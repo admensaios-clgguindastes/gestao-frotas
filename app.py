@@ -11,17 +11,13 @@ st.set_page_config(
     layout="wide",
 )
 
-# CSS Definitivo para forçar tema claro em 100% dos componentes (incluindo Modais e Inputs)
+# Estilização CSS Definitiva: Fundo limpo, botões destacados com letras em branco e modais legíveis
 st.markdown(
     """
     <style>
-    /* Forçar tema claro em toda a aplicação */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #f8fafc !important;
-        color: #0f172a !important;
-    }
+    .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
     
-    /* Textos, títulos e rótulos escuros */
+    /* Textos gerais escuros para fundo branco */
     h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
         color: #0f172a !important;
     }
@@ -44,7 +40,7 @@ st.markdown(
         background-color: transparent;
     }
     
-    /* Cartões */
+    /* Cartões da Frota e Oficina */
     .fleet-card {
         background: #ffffff !important;
         padding: 20px;
@@ -78,23 +74,23 @@ st.markdown(
         color: white !important;
     }
 
-    /* CORREÇÃO DOS MODAIS / POP-UPS (Fundo Branco e Texto Escuro) */
-    div[data-baseweb="modal"], div[data-testid="stModal"] > div {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        border-radius: 16px !important;
+    /* BOTÕES PRINCIPAIS COM LETRAS EM BRANCO */
+    .stButton > button, div[data-testid="stFormSubmitButton"] > button {
+        background-color: #4f46e5 !important;
+        color: #ffffff !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        border: none !important;
     }
-    
-    /* Campos de entrada, selects e textareas com fundo branco e letras escuras */
-    input, textarea, select, div[data-baseweb="select"] span {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
+    .stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #4338ca !important;
+        color: #ffffff !important;
     }
-    
-    .stTextInput input, .stNumberInput input, .stTextArea textarea {
+
+    /* POP-UPS / MODAIS COM TEXTOS LEGÍVEIS E LETRAS BRANCAS NOS BOTÕES */
+    div[data-baseweb="modal"] {
         background-color: #ffffff !important;
         color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
     }
     </style>
 """,
