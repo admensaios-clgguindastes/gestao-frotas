@@ -76,7 +76,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Abas de Navegação principais em Português
+# Abas de Navegação principais
 tab_dash, tab_workshop, tab_vehicles, tab_history = st.tabs([
     "📊 Painel da Frota",
     f"🛠️ Veículos na Oficina ({len(data['workshop'])})",
@@ -209,17 +209,42 @@ def modal_dar_baixa(item):
     """,
       unsafe_allow_html=True,
   )
+
+  # Estado para os dados extraídos pela IA no pop-up de baixa
+  ai_key = f"ai_data_{item['id']}"
+  if ai_key not in st.session_state:
+    st.session_state[ai_key] = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+    }
+
   uploaded_nf = st.file_uploader(
-      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
+      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key=f"file_{item['id']}"
   )
   if uploaded_nf:
-    st.success("✨ Nota lida com sucesso pela IA!")
+    # Simulando a leitura inteligente dos dados da nota fiscal anexada
+    st.session_state[ai_key] = {
+        "cost": 450.00,
+        "supplier": "OFICINA CENTRAL DE VEICULOS",
+        "classification": "TROCA DE OLEO E FILTROS",
+        "desc": "SERVICO DE REVISAO GERAL, TROCA DE OLEO E FILTRO DE AR.",
+    }
+    st.success(
+        "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente"
+        " abaixo."
+    )
+
+  vals = st.session_state[ai_key]
 
   exit_km = st.number_input("KM de Saída", min_value=item["km"], value=item["km"])
-  cost = st.number_input("Valor Total (R$)", min_value=0.0, value=0.0)
-  supplier = st.text_input("Fornecedor / Oficina")
-  classification = st.text_input("Classificação (ex: Pneus, Freios)")
-  desc = st.text_area("Descrição detalhada")
+  cost = st.number_input("Valor Total (R$)", min_value=0.0, value=vals["cost"])
+  supplier = st.text_input("Fornecedor / Oficina", value=vals["supplier"])
+  classification = st.text_input(
+      "Classificação (ex: Pneus, Freios)", value=vals["classification"]
+  )
+  desc = st.text_area("Descrição detalhada", value=vals["desc"])
 
   if st.button("Concluir e Direcionar ao Histórico"):
     history_item = {
@@ -368,7 +393,7 @@ with tab_vehicles:
               st.rerun()
 
 # ---------------------------------------------------------
-# 4. ABA: HISTÓRICO DE SERVIÇOS (Com Opção de Excluir)
+# 4. ABA: HISTÓRICO DE SERVIÇOS
 # ---------------------------------------------------------
 
 
@@ -388,11 +413,29 @@ def modal_manutencao_manual():
     """,
       unsafe_allow_html=True,
   )
+
+  # Estado para os dados extraídos no modal manual
+  if "ai_manual" not in st.session_state:
+    st.session_state.ai_manual = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+    }
+
   uploaded_file = st.file_uploader(
-      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"]
+      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key="file_manual"
   )
   if uploaded_file:
-    st.success("✨ Nota lida com sucesso pela IA!")
+    st.session_state.ai_manual = {
+        "cost": 320.00,
+        "supplier": "AUTO MECANICA EXPRESS",
+        "classification": "TROCA DE PASTILHAS",
+        "desc": "SUBSTITUICAO DAS PASTILHAS DE FREIO DIANTEIRAS.",
+    }
+    st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
+
+  m_vals = st.session_state.ai_manual
 
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
   serv_plate_full = st.selectbox("Veículo (Placa)", plates)
@@ -405,10 +448,22 @@ def modal_manutencao_manual():
       "Data / Hora de Saída", value=datetime.now().strftime("%Y-%m-%d %H:%M")
   )
   km_val = st.number_input("Quilometragem (KM)", min_value=0)
-  cost_val = st.number_input("Valor Total (R$)", min_value=0.0)
-  supplier = st.text_input("Fornecedor / Oficina", placeholder="Ex: Flancar...")
-  classification = st.text_input("Classificação", placeholder="Ex: Troca de Óleo...")
-  description = st.text_area("Descrição Detalhada", placeholder="Descreva...")
+  cost_val = st.number_input("Valor Total (R$)", min_value=0.0, value=m_vals["cost"])
+  supplier = st.text_input(
+      "Fornecedor / Oficina",
+      value=m_vals["supplier"],
+      placeholder="Ex: Flancar...",
+  )
+  classification = st.text_input(
+      "Classificação",
+      value=m_vals["classification"],
+      placeholder="Ex: Troca de Óleo...",
+  )
+  description = st.text_area(
+      "Descrição Detalhada",
+      value=m_vals["desc"],
+      placeholder="Descreva...",
+  )
 
   if st.button("Salvar no Histórico"):
     plate_code = serv_plate_full.split(" - ")[0]
@@ -440,7 +495,6 @@ with tab_history:
   if not data["history"]:
     st.info("Nenhum serviço registrado no histórico.")
   else:
-    # Exibição individual com botão de exclusão para cada registro do histórico
     for idx, h in enumerate(data["history"]):
       col_h_info, col_h_del = st.columns([6, 1])
       with col_h_info:
@@ -460,7 +514,6 @@ with tab_history:
         )
       with col_h_del:
         if st.button("🗑️ Excluir", key=f"del_hist_{idx}"):
-          # Remove do histórico pelo ID ou índice
           if "id" in h:
             data["history"] = [
                 item for item in data["history"] if item.get("id") != h["id"]
