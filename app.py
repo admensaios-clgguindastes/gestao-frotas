@@ -11,24 +11,56 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização CSS completa para forçar fundo branco e textos escuros legíveis em TUDO (incluindo modais e tabelas)
+# CSS Definitivo para forçar tema claro em 100% dos componentes (incluindo Modais e Inputs)
 st.markdown(
     """
     <style>
-    /* Fundo geral da aplicação */
-    .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
+    /* Forçar tema claro em toda a aplicação */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+    }
     
-    /* Forçar cores escuras em todos os textos e rótulos */
-    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown, .stTextInput, .stSelectbox { color: #0f172a !important; }
+    /* Textos, títulos e rótulos escuros */
+    h1, h2, h3, h4, h5, h6, p, span, label, div, .stMarkdown {
+        color: #0f172a !important;
+    }
     
     /* Abas de navegação */
-    .stTabs [data-baseweb="tab-list"] { gap: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; background-color: transparent; }
-    .stTabs [data-baseweb="tab"] { font-weight: 600; color: #64748b !important; font-size: 15px; }
-    .stTabs [aria-selected="true"] { color: #4f46e5 !important; border-bottom: 2px solid #4f46e5; background-color: transparent; }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 8px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-weight: 600;
+        color: #64748b !important;
+        font-size: 15px;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #4f46e5 !important;
+        border-bottom: 2px solid #4f46e5;
+        background-color: transparent;
+    }
     
     /* Cartões */
-    .fleet-card { background: #ffffff !important; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; color: #0f172a !important; }
-    .workshop-card { background: #fff5f5 !important; border: 1px solid #feb2b2; padding: 20px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .fleet-card {
+        background: #ffffff !important;
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 16px;
+    }
+    .workshop-card {
+        background: #fff5f5 !important;
+        border: 1px solid #feb2b2;
+        padding: 20px;
+        border-radius: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
     
     /* Caixa de IA */
     .ai-box {
@@ -42,14 +74,28 @@ st.markdown(
         margin-bottom: 16px;
         box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
     }
-    .ai-box *, .ai-box h4, .ai-box p, .ai-box div { color: white !important; }
+    .ai-box *, .ai-box h4, .ai-box p, .ai-box div {
+        color: white !important;
+    }
 
-    /* Correção para modais e caixas de diálogo do Streamlit */
-    div[data-baseweb="modal"] { background-color: #ffffff !important; color: #0f172a !important; }
-    div[data-testid="stModal"] { background-color: rgba(0, 0, 0, 0.5); }
+    /* CORREÇÃO DOS MODAIS / POP-UPS (Fundo Branco e Texto Escuro) */
+    div[data-baseweb="modal"], div[data-testid="stModal"] > div {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border-radius: 16px !important;
+    }
     
-    /* Inputs de texto e números com fundo branco */
-    input, textarea, select { background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #cbd5e1 !important; }
+    /* Campos de entrada, selects e textareas com fundo branco e letras escuras */
+    input, textarea, select, div[data-baseweb="select"] span {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    
+    .stTextInput input, .stNumberInput input, .stTextArea textarea {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -490,5 +536,5 @@ with tab_history:
         "📥 Baixar Histórico em Excel (CSV)",
         data=csv,
         file_name="historico_manutencao.csv",
-        mime="text/css",
+        mime="text/csv",
     )
