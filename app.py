@@ -243,53 +243,73 @@ def modal_dar_baixa(item):
 
   ai_key = f"ai_data_{item['id']}"
 
-  # Inicializa sempre limpo ou recolhe do arquivo anexado
+  if ai_key not in st.session_state:
+    st.session_state[ai_key] = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+        "m_type": "Corretiva",
+    }
+
   uploaded_nf = st.file_uploader(
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key=f"file_{item['id']}"
   )
 
   if uploaded_nf:
-    # Simulação da leitura inteligente da IA com dados reais extraídos da nota anexada
-    st.session_state[ai_key] = {
-        "cost": 450.00,
-        "supplier": "OFICINA CENTRAL DE VEICULOS",
-        "classification": "REVISÃO / ÓLEO",
-        "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
-        "m_type": "Preventiva",
-    }
-    st.success(
-        "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente."
-    )
-  else:
-    # Se nenhum arquivo foi anexado (ou foi removido), mantém os campos em branco / zerados
-    if ai_key not in st.session_state or st.session_state.get(
-        f"last_file_{item['id']}"
-    ) != uploaded_nf:
+    if st.session_state.get(f"last_file_{item['id']}") != uploaded_nf:
       st.session_state[ai_key] = {
-          "cost": 0.0,
-          "supplier": "",
-          "classification": "",
-          "desc": "",
-          "m_type": "Corretiva",
+          "cost": 450.00,
+          "supplier": "OFICINA CENTRAL DE VEICULOS",
+          "classification": "REVISÃO / ÓLEO",
+          "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
+          "m_type": "Preventiva",
       }
+      st.success(
+          "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente."
+      )
 
   st.session_state[f"last_file_{item['id']}"] = uploaded_nf
+
+  # Botão de Limpar Campos Manual
+  if st.button("🧹 Limpar Campos", key=f"clear_workshop_{item['id']}"):
+    st.session_state[ai_key] = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+        "m_type": "Corretiva",
+    }
+    st.success("Campos limpos com sucesso!")
+    st.rerun()
+
   vals = st.session_state[ai_key]
 
   m_type = st.selectbox(
       "Tipo de Manutenção",
       ["Corretiva", "Preventiva"],
       index=1 if vals["m_type"] == "Preventiva" else 0,
+      key=f"type_{item['id']}",
   )
-  exit_km = st.number_input("KM de Saída", min_value=item["km"], value=item["km"])
-  cost = st.number_input("Valor Total (R$)", min_value=0.0, value=vals["cost"])
-  supplier = st.text_input("Fornecedor / Oficina", value=vals["supplier"])
+  exit_km = st.number_input(
+      "KM de Saída", min_value=item["km"], value=item["km"], key=f"ekm_{item['id']}"
+  )
+  cost = st.number_input(
+      "Valor Total (R$)", min_value=0.0, value=vals["cost"], key=f"cost_{item['id']}"
+  )
+  supplier = st.text_input(
+      "Fornecedor / Oficina", value=vals["supplier"], key=f"supp_{item['id']}"
+  )
   classification = st.text_input(
-      "Classificação (ex: Pneus, Freios)", value=vals["classification"]
+      "Classificação (ex: Pneus, Freios)",
+      value=vals["classification"],
+      key=f"class_{item['id']}",
   )
-  desc = st.text_area("Descrição detalhada", value=vals["desc"])
+  desc = st.text_area(
+      "Descrição detalhada", value=vals["desc"], key=f"desc_{item['id']}"
+  )
 
-  if st.button("Concluir e Direcionar ao Histórico"):
+  if st.button("Concluir e Direcionar ao Histórico", key=f"save_{item['id']}"):
     history_item = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": item["plate"],
@@ -484,64 +504,84 @@ def modal_manutencao_manual():
   )
 
   if uploaded_file:
-    st.session_state.ai_manual = {
-        "cost": 320.00,
-        "supplier": "AUTO MECANICA EXPRESS",
-        "classification": "REVISÃO / PEÇAS",
-        "desc": "TROCA DE ITENS DE DESGASTE.",
-        "m_type": "Preventiva",
-    }
-    st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
-  else:
-    if "ai_manual" not in st.session_state or st.session_state.get(
-        "last_file_manual"
-    ) != uploaded_file:
+    if st.session_state.get("last_file_manual") != uploaded_file:
       st.session_state.ai_manual = {
-          "cost": 0.0,
-          "supplier": "",
-          "classification": "",
-          "desc": "",
-          "m_type": "Corretiva",
+          "cost": 320.00,
+          "supplier": "AUTO MECANICA EXPRESS",
+          "classification": "REVISÃO / PEÇAS",
+          "desc": "TROCA DE ITENS DE DESGASTE.",
+          "m_type": "Preventiva",
       }
+      st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
 
   st.session_state["last_file_manual"] = uploaded_file
+
+  # Botão de Limpar Campos Manual no histórico
+  if st.button("🧹 Limpar Campos", key="clear_manual"):
+    st.session_state.ai_manual = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+        "m_type": "Corretiva",
+    }
+    st.success("Campos limpos com sucesso!")
+    st.rerun()
+
+  if "ai_manual" not in st.session_state:
+    st.session_state.ai_manual = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+        "m_type": "Corretiva",
+    }
+
   m_vals = st.session_state.ai_manual
 
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
-  serv_plate_full = st.selectbox("Veículo (Placa)", plates)
+  serv_plate_full = st.selectbox("Veículo (Placa)", plates, key="m_plate")
   serv_type = st.selectbox(
       "Tipo de Manutenção",
       ["Corretiva", "Preventiva"],
       index=1 if m_vals["m_type"] == "Preventiva" else 0,
+      key="m_type_sel",
   )
 
   entry_dt = st.text_input(
-      "Data / Hora de Entrada", value=datetime.now().strftime("%Y-%m-%d %H:%M")
+      "Data / Hora de Entrada",
+      value=datetime.now().strftime("%Y-%m-%d %H:%M"),
+      key="m_in",
   )
   exit_dt = st.text_input(
-      "Data / Hora de Saída", value=datetime.now().strftime("%Y-%m-%d %H:%M")
+      "Data / Hora de Saída",
+      value=datetime.now().strftime("%Y-%m-%d %H:%M"),
+      key="m_out",
   )
-  km_val = st.number_input("Quilometragem (KM)", min_value=0)
+  km_val = st.number_input("Quilometragem (KM)", min_value=0, key="m_km")
   cost_val = st.number_input(
-      "Valor Total (R$)", min_value=0.0, value=m_vals["cost"]
+      "Valor Total (R$)", min_value=0.0, value=m_vals["cost"], key="m_cost"
   )
   supplier = st.text_input(
       "Fornecedor / Oficina",
       value=m_vals["supplier"],
       placeholder="Ex: Flancar...",
+      key="m_supp",
   )
   classification = st.text_input(
       "Classificação",
       value=m_vals["classification"],
       placeholder="Ex: Troca de Óleo...",
+      key="m_class",
   )
   description = st.text_area(
       "Descrição Detalhada",
       value=m_vals["desc"],
       placeholder="Descreva...",
+      key="m_desc",
   )
 
-  if st.button("Salvar no Histórico"):
+  if st.button("Salvar no Histórico", key="m_save"):
     plate_code = serv_plate_full.split(" - ")[0]
     new_hist = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
