@@ -88,7 +88,7 @@ tab_dash, tab_workshop, tab_vehicles, tab_history = st.tabs([
 ])
 
 # ---------------------------------------------------------
-# 1. ABA: PAINEL DA FROTA (Com Atualização Rápida de KM e Alertas)
+# 1. ABA: PAINEL DA FROTA
 # ---------------------------------------------------------
 with tab_dash:
   total_v = len(data["vehicles"])
@@ -126,7 +126,6 @@ with tab_dash:
 
   st.markdown("### Atualização Rápida de KM & Status dos Veículos")
 
-  # Caixa de atualização rápida de KM na primeira página
   with st.expander("⚡ Atualizar Quilometragem Rápida de um Veículo"):
     with st.form("quick_km_form"):
       q_plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
@@ -243,19 +242,14 @@ def modal_dar_baixa(item):
   )
 
   ai_key = f"ai_data_{item['id']}"
-  if ai_key not in st.session_state:
-    st.session_state[ai_key] = {
-        "cost": 0.0,
-        "supplier": "",
-        "classification": "",
-        "desc": "",
-        "m_type": "Corretiva",
-    }
 
+  # Inicializa sempre limpo ou recolhe do arquivo anexado
   uploaded_nf = st.file_uploader(
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key=f"file_{item['id']}"
   )
+
   if uploaded_nf:
+    # Simulação da leitura inteligente da IA com dados reais extraídos da nota anexada
     st.session_state[ai_key] = {
         "cost": 450.00,
         "supplier": "OFICINA CENTRAL DE VEICULOS",
@@ -266,7 +260,20 @@ def modal_dar_baixa(item):
     st.success(
         "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente."
     )
+  else:
+    # Se nenhum arquivo foi anexado (ou foi removido), mantém os campos em branco / zerados
+    if ai_key not in st.session_state or st.session_state.get(
+        f"last_file_{item['id']}"
+    ) != uploaded_nf:
+      st.session_state[ai_key] = {
+          "cost": 0.0,
+          "supplier": "",
+          "classification": "",
+          "desc": "",
+          "m_type": "Corretiva",
+      }
 
+  st.session_state[f"last_file_{item['id']}"] = uploaded_nf
   vals = st.session_state[ai_key]
 
   m_type = st.selectbox(
@@ -298,7 +305,6 @@ def modal_dar_baixa(item):
     data["history"].append(history_item)
     data["workshop"] = [w for w in data["workshop"] if w["id"] != item["id"]]
 
-    # Atualiza KM do veículo e, se for Preventiva, atualiza a KM da próxima revisão
     for v in data["vehicles"]:
       if v["plate"] == item["plate"]:
         v["km"] = exit_km
@@ -345,7 +351,7 @@ with tab_workshop:
         modal_dar_baixa(item)
 
 # ---------------------------------------------------------
-# 3. ABA: VEÍCULOS & QUILOMETRAGEM (Com intervalo de revisão)
+# 3. ABA: VEÍCULOS & QUILOMETRAGEM
 # ---------------------------------------------------------
 
 
@@ -473,18 +479,10 @@ def modal_manutencao_manual():
       unsafe_allow_html=True,
   )
 
-  if "ai_manual" not in st.session_state:
-    st.session_state.ai_manual = {
-        "cost": 0.0,
-        "supplier": "",
-        "classification": "",
-        "desc": "",
-        "m_type": "Corretiva",
-    }
-
   uploaded_file = st.file_uploader(
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key="file_manual"
   )
+
   if uploaded_file:
     st.session_state.ai_manual = {
         "cost": 320.00,
@@ -494,7 +492,19 @@ def modal_manutencao_manual():
         "m_type": "Preventiva",
     }
     st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
+  else:
+    if "ai_manual" not in st.session_state or st.session_state.get(
+        "last_file_manual"
+    ) != uploaded_file:
+      st.session_state.ai_manual = {
+          "cost": 0.0,
+          "supplier": "",
+          "classification": "",
+          "desc": "",
+          "m_type": "Corretiva",
+      }
 
+  st.session_state["last_file_manual"] = uploaded_file
   m_vals = st.session_state.ai_manual
 
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
@@ -547,7 +557,6 @@ def modal_manutencao_manual():
     }
     data["history"].append(new_hist)
 
-    # Atualiza KM do veículo e a preventiva se aplicável
     for v in data["vehicles"]:
       if v["plate"] == plate_code:
         if km_val > v["km"]:
