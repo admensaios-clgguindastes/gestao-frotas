@@ -16,9 +16,11 @@ st.set_page_config(
 GITHUB_REPO = st.secrets.get("GITHUB_REPO", "seu-usuario/seu-repositorio")
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "seu_token_aqui")
 FILE_PATH = "fleet_data.json"
+EXCEL_PATH = "MANUTENÇÕES CLG.xlsx"
 
 
 def load_data_from_github():
+  # Tenta carregar do GitHub primeiro
   if GITHUB_TOKEN and GITHUB_REPO:
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
     headers = {
@@ -42,8 +44,64 @@ def load_data_from_github():
     with open(FILE_PATH, "r", encoding="utf-8") as f:
       return json.load(f), None
 
-  initial_data = {
-      "vehicles": [
+  # Se não existir dados salvos, tenta importar do Excel enviado (MANUTENÇÕES CLG.xlsx)
+  initial_history = []
+  vehicles_dict = {}
+
+  if os.path.exists(EXCEL_PATH):
+    try:
+      df_excel = pd.read_excel(EXCEL_PATH, skiprows=1)
+      for idx, row in df_excel.iterrows():
+        plate = str(row.get("PLACA VEÍCULO", "")).strip().upper()
+        if not plate or plate == "NAN":
+          continue
+
+        km = float(row.get("KM", 0) or 0)
+        date_raw = row.get("DATA", datetime.now())
+        date_str = (
+            str(date_raw)[:16]
+            if pd.notnull(date_raw)
+            else datetime.now().strftime("%Y-%m-%d %H:%M")
+        )
+        supplier = str(row.get("FORNECEDOR", "N/A") or "N/A").strip()
+        cost = float(row.get("VALOR R$", 0) or 0)
+        t_man = str(row.get("TIPO MAN.", "Corretiva") or "Corretiva").strip()
+        t_man = "Preventiva" if "PREV" in t_man.upper() else "Corretiva"
+        desc = str(row.get("SERVIO DETALHADO", "") or "").strip()
+
+        # Adiciona ao histórico
+        initial_history.append({
+            "id": f"excel_{idx}",
+            "plate": plate,
+            "type": t_man,
+            "entry_date": date_str,
+            "exit_date": date_str,
+            "km": int(km),
+            "cost": cost,
+            "supplier": supplier.upper(),
+            "classification": str(
+                row.get("CLASSIFICAÇÃO DE MANUTENÇÃO", "MANUTENÇÃO")
+            ).upper(),
+            "description": desc.upper(),
+        })
+
+        # Mapeia veículos únicos encontrados no Excel
+        if plate not in vehicles_dict or km > vehicles_dict[plate]["km"]:
+          vehicles_dict[plate] = {
+              "plate": plate,
+              "model": "Veículo Frota CLG",
+              "driver": "Equipe Técnica",
+              "km": int(km),
+              "preventive_interval": 10000,
+              "preventive_km": int(km + 10000),
+          }
+    except Exception as e:
+      print(f"Erro ao importar Excel: {e}")
+
+  vehicles_list = (
+      list(vehicles_dict.values())
+      if vehicles_dict
+      else [
           {
               "plate": "ABC-1234",
               "model": "Fiat Fiorino",
@@ -51,26 +109,14 @@ def load_data_from_github():
               "km": 40000,
               "preventive_interval": 10000,
               "preventive_km": 50000,
-          },
-          {
-              "plate": "XYZ-9876",
-              "model": "Renault Master",
-              "driver": "Equipe Palco",
-              "km": 78000,
-              "preventive_interval": 10000,
-              "preventive_km": 80000,
-          },
-          {
-              "plate": "DEF-5678",
-              "model": "Hyundai HR",
-              "driver": "Logística Geral",
-              "km": 31000,
-              "preventive_interval": 10000,
-              "preventive_km": 40000,
-          },
-      ],
+          }
+      ]
+  ]
+
+  initial_data = {
+      "vehicles": vehicles_list,
       "workshop": [],
-      "history": [],
+      "history": initial_history,
   }
   save_data_to_github(initial_data)
   return initial_data, None
@@ -130,7 +176,7 @@ st.markdown(
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="background-color: #4f46e5; padding: 10px; border-radius: 10px; font-size: 18px;">🚚</div>
             <div>
-                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: white !important;">Hits Acústico</h2>
+                <h2 style="margin: 0; font-size: 18px; font-weight: bold; color: white !important;">Hits Acústico & CLG Guindastes</h2>
                 <p style="margin: 0; font-size: 12px; color: #94a3b8 !important;">Gestão de Manutenção de Frotas</p>
             </div>
         </div>
@@ -139,13 +185,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Abas de Navegação principais (incluindo Relatórios)
-tab_dash, tab_workshop, tab_vehicles, tab_history, tab_reports = st.tabs([
+# Abas de Navegação principais
+tab_dash, tab_workshop, tab_vehicles, tab_history = st.tabs([
     "📊 Painel da Frota",
     f"🛠️ Veículos na Oficina ({len(data['workshop'])})",
     "🚐 Veículos & Quilometragem",
     "📋 Histórico de Serviços",
-    "📈 Relatórios & Custos",
 ])
 
 # ---------------------------------------------------------
@@ -166,8 +211,8 @@ with tab_dash:
     total_diffs = []
     for item in data["history"]:
       try:
-        dt_in = datetime.strptime(item["entry_date"], "%Y-%m-%d %H:%M")
-        dt_out = datetime.strptime(item["exit_date"], "%Y-%m-%d %H:%M")
+        dt_in = datetime.strptime(item["entry_date"][:10], "%Y-%m-%d")
+        dt_out = datetime.strptime(item["exit_date"][:10], "%Y-%m-%d")
         diff_h = (dt_out - dt_in).total_seconds() / 3600
         if diff_h > 0:
           total_diffs.append(diff_h)
@@ -252,6 +297,63 @@ with tab_dash:
                 ",", "."
             ),
             unsafe_allow_html=True,
+        )
+
+  # Relatórios & Custos no Painel da Frota
+  st.markdown("---")
+  st.subheader("📈 Relatórios Estatísticos & Custos de Manutenção")
+
+  if not data["history"]:
+    st.info(
+        "Ainda não há registros no histórico para gerar relatórios e gráficos."
+    )
+  else:
+    df_rep = pd.DataFrame(data["history"])
+    df_rep["cost"] = pd.to_numeric(df_rep["cost"], errors="coerce").fillna(0)
+
+    total_gasto = df_rep["cost"].sum()
+    total_servicos = len(df_rep)
+    custo_medio = total_gasto / total_servicos if total_servicos > 0 else 0
+
+    rc1, rc2, rc3 = st.columns(3)
+    rc1.metric("Custo Total da Frota", f"R$ {total_gasto:,.2f}".replace(",", "."))
+    rc2.metric("Total de Intervenções", total_servicos)
+    rc3.metric(
+        "Custo Médio por Serviço", f"R$ {custo_medio:,.2f}".replace(",", ".")
+    )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("### 📊 Custo Total de Manutenção por Veículo (R$)")
+    df_cost_plate = df_rep.groupby("plate")["cost"].sum().reset_index()
+    df_cost_plate.columns = ["Placa", "Custo Total (R$)"]
+    st.bar_chart(
+        df_cost_plate.set_index("Placa"),
+        color="#4f46e5",
+        use_container_width=True,
+    )
+
+    col_g1, col_g2 = st.columns(2)
+
+    with col_g1:
+      st.markdown("### 🛠️ Custos por Tipo de Manutenção")
+      df_cost_type = df_rep.groupby("type")["cost"].sum().reset_index()
+      df_cost_type.columns = ["Tipo", "Custo Total (R$)"]
+      st.bar_chart(
+          df_cost_type.set_index("Tipo"),
+          color="#06b6d4",
+          use_container_width=True,
+      )
+
+    with col_g2:
+      st.markdown("### 🏢 Gastos por Fornecedor")
+      if "supplier" in df_rep.columns:
+        df_cost_supp = df_rep.groupby("supplier")["cost"].sum().reset_index()
+        df_cost_supp.columns = ["Fornecedor", "Custo Total (R$)"]
+        st.bar_chart(
+            df_cost_supp.set_index("Fornecedor"),
+            color="#10b981",
+            use_container_width=True,
         )
 
 # ---------------------------------------------------------
@@ -719,66 +821,3 @@ with tab_history:
         file_name="historico_manutencao.csv",
         mime="text/csv",
     )
-
-# ---------------------------------------------------------
-# 5. ABA: RELATÓRIOS & CUSTOS (NOVA)
-# ---------------------------------------------------------
-with tab_reports:
-  st.subheader("Relatórios Estatísticos & Custos de Manutenção")
-
-  if not data["history"]:
-    st.info(
-        "Ainda não há registros no histórico para gerar relatórios e gráficos."
-    )
-  else:
-    df_rep = pd.DataFrame(data["history"])
-
-    # Garantir que a coluna cost seja numérica
-    df_rep["cost"] = pd.to_numeric(df_rep["cost"], errors="fill")
-
-    # Métricas gerais resumidas
-    total_gasto = df_rep["cost"].sum()
-    total_servicos = len(df_rep)
-    custo_medio = total_gasto / total_servicos if total_servicos > 0 else 0
-
-    rc1, rc2, rc3 = st.columns(3)
-    rc1.metric("Custo Total da Frota", f"R$ {total_gasto:,.2f}".replace(",", "."))
-    rc2.metric("Total de Intervenções", total_servicos)
-    rc3.metric(
-        "Custo Médio por Serviço", f"R$ {custo_medio:,.2f}".replace(",", ".")
-    )
-
-    st.markdown("---")
-
-    # Gráfico 1: Custo por Veículo (Placa)
-    st.markdown("### 📊 Custo Total de Manutenção por Veículo (R$)")
-    df_cost_plate = df_rep.groupby("plate")["cost"].sum().reset_index()
-    df_cost_plate.columns = ["Placa", "Custo Total (R$)"]
-    st.bar_chart(
-        df_cost_plate.set_index("Placa"),
-        color="#4f46e5",
-        use_container_width=True,
-    )
-
-    col_g1, col_g2 = st.columns(2)
-
-    with col_g1:
-      st.markdown("### 🛠️ Custos por Tipo de Manutenção")
-      df_cost_type = df_rep.groupby("type")["cost"].sum().reset_index()
-      df_cost_type.columns = ["Tipo", "Custo Total (R$)"]
-      st.bar_chart(
-          df_cost_type.set_index("Tipo"),
-          color="#06b6d4",
-          use_container_width=True,
-      )
-
-    with col_g2:
-      st.markdown("### 🏢 Gastos por Fornecedor")
-      if "supplier" in df_rep.columns:
-        df_cost_supp = df_rep.groupby("supplier")["cost"].sum().reset_index()
-        df_cost_supp.columns = ["Fornecedor", "Custo Total (R$)"]
-        st.bar_chart(
-            df_cost_supp.set_index("Fornecedor"),
-            color="#10b981",
-            use_container_width=True,
-        )
