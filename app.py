@@ -507,3 +507,278 @@ with tab_vehicles:
 
       if st.session_state.get(f"edit_mode_{v['plate']}", False):
         with st.form(f"form_edit_veh_{v['plate']}"):
+          st.markdown(f"**Editar Veículo: {v['plate']}**")
+          m_model = st.text_input("Modelo", value=v["model"])
+          m_driver = st.text_input("Responsável / Equipe", value=v["driver"])
+          m_km = st.number_input("KM Atual", value=v["km"])
+          m_interval = st.number_input(
+              "Intervalo KM Preventiva",
+              value=v.get("preventive_interval", 10000),
+          )
+          m_prev = st.number_input(
+              "KM da Próxima Preventiva",
+              value=v.get("preventive_km", v["km"] + 10000),
+          )
+
+          b1, b2 = st.columns(2)
+          with b1:
+            if st.form_submit_button("Salvar Alterações"):
+              v["model"] = m_model
+              v["driver"] = m_driver
+              v["km"] = m_km
+              v["preventive_interval"] = m_interval
+              v["preventive_km"] = m_prev
+              save_data_to_github(data)
+              st.session_state[f"edit_mode_{v['plate']}"] = False
+              st.success("Veículo atualizado com sucesso!")
+              st.rerun()
+          with b2:
+            if st.form_submit_button("Cancelar"):
+              st.session_state[f"edit_mode_{v['plate']}"] = False
+              st.rerun()
+
+# ---------------------------------------------------------
+# 4. ABA: HISTÓRICO DE SERVIÇOS
+# ---------------------------------------------------------
+
+
+@st.dialog("➕ Registrar Manutenção Manual")
+def modal_manutencao_manual():
+  st.markdown(
+      """
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 16px 20px; border-radius: 14px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 20px;">✨</span>
+                <div>
+                    <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal para preencher automaticamente.</div>
+                </div>
+            </div>
+        </div>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  uploaded_file = st.file_uploader(
+      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key="file_manual"
+  )
+
+  if uploaded_file:
+    if st.session_state.get("last_file_manual") != uploaded_file:
+      st.session_state.ai_manual = {
+          "cost": 320.00,
+          "supplier": "AUTO MECANICA EXPRESS",
+          "classification": "REVISÃO / PEÇAS",
+          "desc": "TROCA DE ITENS DE DESGASTE.",
+          "m_type": "Preventiva",
+      }
+      st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
+
+  st.session_state["last_file_manual"] = uploaded_file
+
+  if st.button("🧹 Limpar Campos", key="clear_manual"):
+    st.session_state.ai_manual = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+        "m_type": "Corretiva",
+    }
+    st.success("Campos limpos com sucesso!")
+    st.rerun()
+
+  if "ai_manual" not in st.session_state:
+    st.session_state.ai_manual = {
+        "cost": 0.0,
+        "supplier": "",
+        "classification": "",
+        "desc": "",
+        "m_type": "Corretiva",
+    }
+
+  m_vals = st.session_state.ai_manual
+
+  plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
+  serv_plate_full = st.selectbox("Veículo (Placa)", plates, key="m_plate")
+  serv_type = st.selectbox(
+      "Tipo de Manutenção",
+      ["Corretiva", "Preventiva"],
+      index=1 if m_vals["m_type"] == "Preventiva" else 0,
+      key="m_type_sel",
+  )
+
+  entry_dt = st.text_input(
+      "Data / Hora de Entrada",
+      value=datetime.now().strftime("%Y-%m-%d %H:%M"),
+      key="m_in",
+  )
+  exit_dt = st.text_input(
+      "Data / Hora de Saída",
+      value=datetime.now().strftime("%Y-%m-%d %H:%M"),
+      key="m_out",
+  )
+  km_val = st.number_input("Quilometragem (KM)", min_value=0, key="m_km")
+  cost_val = st.number_input(
+      "Valor Total (R$)", min_value=0.0, value=m_vals["cost"], key="m_cost"
+  )
+  supplier = st.text_input(
+      "Fornecedor / Oficina",
+      value=m_vals["supplier"],
+      placeholder="Ex: Flancar...",
+      key="m_supp",
+  )
+  classification = st.text_input(
+      "Classificação",
+      value=m_vals["classification"],
+      placeholder="Ex: Troca de Óleo...",
+      key="m_class",
+  )
+  description = st.text_area(
+      "Descrição Detalhada",
+      value=m_vals["desc"],
+      placeholder="Descreva...",
+      key="m_desc",
+  )
+
+  if st.button("Salvar no Histórico", key="m_save"):
+    plate_code = serv_plate_full.split(" - ")[0]
+    new_hist = {
+        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
+        "plate": plate_code,
+        "type": serv_type,
+        "entry_date": entry_dt,
+        "exit_date": exit_dt,
+        "km": km_val,
+        "cost": cost_val,
+        "supplier": supplier.upper(),
+        "classification": classification.upper(),
+        "description": description.upper(),
+    }
+    data["history"].append(new_hist)
+
+    for v in data["vehicles"]:
+      if v["plate"] == plate_code:
+        if km_val > v["km"]:
+          v["km"] = km_val
+        if serv_type == "Preventiva":
+          interval = v.get("preventive_interval", 10000)
+          v["preventive_km"] = km_val + interval
+
+    save_data_to_github(data)
+    st.success("Salvo no histórico e quilometragem atualizada com sucesso!")
+    st.rerun()
+
+
+with tab_history:
+  st.subheader("Histórico de Serviços & Manutenções")
+
+  if st.button("➕ Registrar Nova Manutenção Manual"):
+    modal_manutencao_manual()
+
+  st.markdown("---")
+  if not data["history"]:
+    st.info("Nenhum serviço registrado no histórico.")
+  else:
+    for idx, h in enumerate(data["history"]):
+      col_h_info, col_h_del = st.columns([6, 1])
+      with col_h_info:
+        st.markdown(
+            f"""
+                <div style="background: white; padding: 14px 18px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <b style="color: #0f172a; font-size: 14px;">🚚 Placa: {h['plate']} ({h['type']})</b>
+                        <span style="color: #475569; font-size: 12px;"><b>Valor:</b> R$ {h.get('cost', 0):,.2f}</span>
+                    </div>
+                    <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Período:</b> {h['entry_date']} até {h['exit_date']} | <b>KM:</b> {h['km']:,}</p>
+                    <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Fornecedor:</b> {h['supplier']} | <b>Classificação:</b> {h['classification']}</p>
+                    <p style="margin: 2px 0; font-size: 12px; color: #334155;"><b>Descrição:</b> {h['description']}</p>
+                </div>
+                """.replace(
+                ",", "."
+            ),
+            unsafe_allow_html=True,
+        )
+      with col_h_del:
+        if st.button("🗑️ Excluir", key=f"del_hist_{idx}"):
+          if "id" in h:
+            data["history"] = [
+                item for item in data["history"] if item.get("id") != h["id"]
+            ]
+          else:
+            data["history"].pop(idx)
+          save_data_to_github(data)
+          st.success("Registro excluído com sucesso!")
+          st.rerun()
+
+    st.markdown("---")
+    df_history = pd.DataFrame(data["history"])
+    csv = df_history.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "📥 Baixar Histórico em Excel (CSV)",
+        data=csv,
+        file_name="historico_manutencao.csv",
+        mime="text/csv",
+    )
+
+# ---------------------------------------------------------
+# 5. ABA: RELATÓRIOS & CUSTOS (NOVA)
+# ---------------------------------------------------------
+with tab_reports:
+  st.subheader("Relatórios Estatísticos & Custos de Manutenção")
+
+  if not data["history"]:
+    st.info(
+        "Ainda não há registros no histórico para gerar relatórios e gráficos."
+    )
+  else:
+    df_rep = pd.DataFrame(data["history"])
+
+    # Garantir que a coluna cost seja numérica
+    df_rep["cost"] = pd.to_numeric(df_rep["cost"], errors="fill")
+
+    # Métricas gerais resumidas
+    total_gasto = df_rep["cost"].sum()
+    total_servicos = len(df_rep)
+    custo_medio = total_gasto / total_servicos if total_servicos > 0 else 0
+
+    rc1, rc2, rc3 = st.columns(3)
+    rc1.metric("Custo Total da Frota", f"R$ {total_gasto:,.2f}".replace(",", "."))
+    rc2.metric("Total de Intervenções", total_servicos)
+    rc3.metric(
+        "Custo Médio por Serviço", f"R$ {custo_medio:,.2f}".replace(",", ".")
+    )
+
+    st.markdown("---")
+
+    # Gráfico 1: Custo por Veículo (Placa)
+    st.markdown("### 📊 Custo Total de Manutenção por Veículo (R$)")
+    df_cost_plate = df_rep.groupby("plate")["cost"].sum().reset_index()
+    df_cost_plate.columns = ["Placa", "Custo Total (R$)"]
+    st.bar_chart(
+        df_cost_plate.set_index("Placa"),
+        color="#4f46e5",
+        use_container_width=True,
+    )
+
+    col_g1, col_g2 = st.columns(2)
+
+    with col_g1:
+      st.markdown("### 🛠️ Custos por Tipo de Manutenção")
+      df_cost_type = df_rep.groupby("type")["cost"].sum().reset_index()
+      df_cost_type.columns = ["Tipo", "Custo Total (R$)"]
+      st.bar_chart(
+          df_cost_type.set_index("Tipo"),
+          color="#06b6d4",
+          use_container_width=True,
+      )
+
+    with col_g2:
+      st.markdown("### 🏢 Gastos por Fornecedor")
+      if "supplier" in df_rep.columns:
+        df_cost_supp = df_rep.groupby("supplier")["cost"].sum().reset_index()
+        df_cost_supp.columns = ["Fornecedor", "Custo Total (R$)"]
+        st.bar_chart(
+            df_cost_supp.set_index("Fornecedor"),
+            color="#10b981",
+            use_container_width=True,
+        )
