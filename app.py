@@ -19,8 +19,38 @@ FILE_PATH = "fleet_data.json"
 EXCEL_PATH = "MANUTENÇÕES CLG.xlsx"
 
 
+def categorizar_servico(desc):
+  desc_str = str(desc).upper()
+  if "PNEU" in desc_str:
+    return "Pneus"
+  elif (
+      "OLEO" in desc_str
+      or "ÓLEO" in desc_str
+      or "FILTRO" in desc_str
+      or "REVISÃO" in desc_str
+      or "REVISAO" in desc_str
+      or "MANUTENÇÃO A" in desc_str
+  ):
+    return "Revisão & Óleo"
+  elif "PASTILHA" in desc_str or "FREIO" in desc_str or "LONA" in desc_str:
+    return "Freios"
+  elif (
+      "AMORTECEDOR" in desc_str
+      or "BATENTE" in desc_str
+      or "BRAÇO" in desc_str
+      or "AXIAL" in desc_str
+      or "SUSPENSÃO" in desc_str
+  ):
+    return "Suspensão & Direção"
+  elif "AR CONDICIONADO" in desc_str or "SERPENTINA" in desc_str:
+    return "Ar Condicionado"
+  elif "CORREIA" in desc_str or "ESTICADOR" in desc_str or "MOTOR" in desc_str:
+    return "Motor & Correias"
+  else:
+    return "Outros / Diversos"
+
+
 def load_data_from_github():
-  # 1. Tenta carregar do GitHub JSON salvo (se existir)
   if GITHUB_TOKEN and GITHUB_REPO:
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
     headers = {
@@ -47,7 +77,6 @@ def load_data_from_github():
     except:
       pass
 
-  # 2. Se não houver JSON, importa do Excel se estiver disponível
   initial_history = []
   vehicles_dict = {}
 
@@ -84,6 +113,9 @@ def load_data_from_github():
         ).strip()
         desc = str(row.get("SERVIO DETALHADO", "") or "").strip()
 
+        # Atribui a categoria inteligente
+        categoria = categorizar_servico(desc)
+
         initial_history.append({
             "id": f"excel_{idx}",
             "plate": plate,
@@ -95,6 +127,7 @@ def load_data_from_github():
             "supplier": supplier.upper(),
             "classification": classif.upper(),
             "description": desc.upper(),
+            "category": categoria,
         })
 
         if plate not in vehicles_dict or km > vehicles_dict[plate]["km"]:
@@ -306,7 +339,7 @@ with tab_dash:
 
   # Relatórios & Custos no Painel da Frota
   st.markdown("---")
-  st.subheader("📈 Relatórios Estatísticos & Custos de Manutenção")
+  st.subheader("📈 Relatórios Estatísticos & Análise de Manutenções")
 
   if not data["history"]:
     st.info(
@@ -315,6 +348,8 @@ with tab_dash:
   else:
     df_rep = pd.DataFrame(data["history"])
     df_rep["cost"] = pd.to_numeric(df_rep["cost"], errors="coerce").fillna(0)
+    if "category" not in df_rep.columns:
+      df_rep["category"] = df_rep["description"].apply(categorizar_servico)
 
     total_gasto = df_rep["cost"].sum()
     total_servicos = len(df_rep)
@@ -329,6 +364,28 @@ with tab_dash:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    col_cat1, col_cat2 = st.columns(2)
+    with col_cat1:
+      st.markdown("### 🔧 Tipos de Manutenção Mais Frequentes (Qtd)")
+      df_cat_count = df_rep["category"].value_counts().reset_index()
+      df_cat_count.columns = ["Categoria", "Quantidade"]
+      st.bar_chart(
+          df_cat_count.set_index("Categoria"),
+          color="#f59e0b",
+          use_container_width=True,
+      )
+
+    with col_cat2:
+      st.markdown("### 💰 Custos Totais por Categoria de Serviço (R$)")
+      df_cat_cost = df_rep.groupby("category")["cost"].sum().reset_index()
+      df_cat_cost.columns = ["Categoria", "Custo Total (R$)"]
+      st.bar_chart(
+          df_cat_cost.set_index("Categoria"),
+          color="#10b981",
+          use_container_width=True,
+      )
+
+    st.markdown("---")
     st.markdown("### 📊 Custo Total de Manutenção por Veículo (R$)")
     df_cost_plate = df_rep.groupby("plate")["cost"].sum().reset_index()
     df_cost_plate.columns = ["Placa", "Custo Total (R$)"]
@@ -339,9 +396,8 @@ with tab_dash:
     )
 
     col_g1, col_g2 = st.columns(2)
-
     with col_g1:
-      st.markdown("### 🛠️ Custos por Tipo de Manutenção")
+      st.markdown("### 🛠️ Custos por Tipo (Preventiva vs Corretiva)")
       df_cost_type = df_rep.groupby("type")["cost"].sum().reset_index()
       df_cost_type.columns = ["Tipo", "Custo Total (R$)"]
       st.bar_chart(
@@ -351,13 +407,19 @@ with tab_dash:
       )
 
     with col_g2:
-      st.markdown("### 🏢 Gastos por Fornecedor")
+      st.markdown("### 🏢 Gastos por Fornecedor Principal")
       if "supplier" in df_rep.columns:
-        df_cost_supp = df_rep.groupby("supplier")["cost"].sum().reset_index()
+        df_cost_supp = (
+            df_rep.groupby("supplier")["cost"]
+            .sum()
+            .reset_index()
+            .sort_values(by="cost", ascending=False)
+            .head(10)
+        )
         df_cost_supp.columns = ["Fornecedor", "Custo Total (R$)"]
         st.bar_chart(
             df_cost_supp.set_index("Fornecedor"),
-            color="#10b981",
+            color="#8b5cf6",
             use_container_width=True,
         )
 
@@ -477,6 +539,7 @@ def modal_dar_baixa(item):
   )
 
   if st.button("Concluir e Direcionar ao Histórico", key=f"save_{item['id']}"):
+    categoria = categorizar_servico(desc)
     history_item = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": item["plate"],
@@ -488,6 +551,7 @@ def modal_dar_baixa(item):
         "supplier": supplier.upper(),
         "classification": classification.upper(),
         "description": desc.upper(),
+        "category": categoria,
     }
     data["history"].append(history_item)
     data["workshop"] = [w for w in data["workshop"] if w["id"] != item["id"]]
@@ -749,6 +813,7 @@ def modal_manutencao_manual():
 
   if st.button("Salvar no Histórico", key="m_save"):
     plate_code = serv_plate_full.split(" - ")[0]
+    categoria = categorizar_servico(description)
     new_hist = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": plate_code,
@@ -760,6 +825,7 @@ def modal_manutencao_manual():
         "supplier": supplier.upper(),
         "classification": classification.upper(),
         "description": description.upper(),
+        "category": categoria,
     }
     data["history"].append(new_hist)
 
