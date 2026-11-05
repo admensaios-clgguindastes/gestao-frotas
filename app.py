@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import os
 import pandas as pd
+import requests
 import streamlit as st
 
 # Configuração da Página
@@ -11,13 +12,41 @@ st.set_page_config(
     layout="wide",
 )
 
-DATA_FILE = "fleet_data.json"
+# Configurações do GitHub para persistência permanente dos dados
+GITHUB_REPO = st.secrets.get(
+    "GITHUB_REPO", "seu-usuario/seu-repositorio"
+)  # Ex: "gabriel/gestao-frotas"
+GITHUB_TOKEN = st.secrets.get(
+    "GITHUB_TOKEN", "seu_token_aqui"
+)  # Token de acesso do GitHub
+FILE_PATH = "fleet_data.json"
 
 
-def load_data():
-  if os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-      return json.load(f)
+def load_data_from_github():
+  """Carrega os dados diretamente do GitHub ou cria a estrutura inicial se não existir."""
+  if GITHUB_TOKEN and GITHUB_REPO:
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "vnd.github.v3+json",
+    }
+    try:
+      response = requests.get(url, headers=headers)
+      if response.status_code == 200:
+        file_content = response.json()
+        import base64
+
+        decoded_content = base64.b64decode(
+            file_content["content"]
+        ).decode("utf-8")
+        return json.loads(decoded_content), file_content.get("sha")
+    except Exception as e:
+      print(f"Erro ao ler do GitHub: {e}")
+
+  # Fallback para ficheiro local se o GitHub não estiver configurado
+  if os.path.exists(FILE_PATH):
+    with open(FILE_PATH, "r", encoding="utf-8") as f:
+      return json.load(f), None
 
   initial_data = {
       "vehicles": [
@@ -49,17 +78,58 @@ def load_data():
       "workshop": [],
       "history": [],
   }
-  save_data(initial_data)
-  return initial_data
+  save_data_to_github(initial_data)
+  return initial_data, None
 
 
-def save_data(data):
-  with open(DATA_FILE, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=4)
+def save_data_to_github(data_dict):
+  """Salva os dados no ficheiro local e faz o commit automático no GitHub."""
+  # Salva localmente também para garantir estabilidade imediata
+  with open(FILE_PATH, "w", encoding="utf-8") as f:
+    json.dump(data_dict, f, ensure_ascii=False, indent=4)
+
+  if GITHUB_TOKEN and GITHUB_REPO:
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "vnd.github.v3+json",
+    }
+
+    # Pega o SHA atual do arquivo para poder atualizar no GitHub
+    sha = None
+    try:
+      resp = requests.get(url, headers=headers)
+      if resp.status_code == 200:
+        sha = resp.json().get("sha")
+    except:
+      pass
+
+    import base64
+
+    content_str = json.dumps(data_dict, ensure_ascii=False, indent=4)
+    content_encoded = base64.b64encode(content_str.encode("utf-8")).decode(
+        "utf-8"
+    )
+
+    payload = {
+        "message": (
+            "Atualização automática de dados da frota via Streamlit App"
+        ),
+        "content": content_encoded,
+    }
+    if sha:
+      payload["sha"] = sha
+
+    try:
+      requests.put(url, headers=headers, json=payload)
+    except Exception as e:
+      print(f"Erro ao salvar no GitHub: {e}")
 
 
+# Inicialização dos dados na sessão
 if "data" not in st.session_state:
-  st.session_state.data = load_data()
+  loaded, sha_val = load_data_from_github()
+  st.session_state.data = loaded
 
 data = st.session_state.data
 
@@ -136,7 +206,7 @@ with tab_dash:
         for v in data["vehicles"]:
           if v["plate"] == plate_to_up:
             v["km"] = new_q_km
-        save_data(data)
+        save_data_to_github(data)
         st.success(f"Quilometragem do veículo {plate_to_up} atualizada!")
         st.rerun()
 
@@ -215,7 +285,7 @@ def modal_registrar_entrada():
         "reason": reason,
     }
     data["workshop"].append(new_entry)
-    save_data(data)
+    save_data_to_github(data)
     st.success("Veículo enviado para a oficina com sucesso!")
     st.rerun()
 
@@ -271,7 +341,6 @@ def modal_dar_baixa(item):
 
   st.session_state[f"last_file_{item['id']}"] = uploaded_nf
 
-  # Botão de Limpar Campos Manual
   if st.button("🧹 Limpar Campos", key=f"clear_workshop_{item['id']}"):
     st.session_state[ai_key] = {
         "cost": 0.0,
@@ -332,7 +401,7 @@ def modal_dar_baixa(item):
           interval = v.get("preventive_interval", 10000)
           v["preventive_km"] = exit_km + interval
 
-    save_data(data)
+    save_data_to_github(data)
     st.success(
         "Baixa realizada, histórico atualizado e quilometragem preventiva"
         " recalculada!"
@@ -402,7 +471,7 @@ def modal_cadastrar_veiculo():
           "preventive_interval": new_interval,
           "preventive_km": calculated_preventive,
       })
-      save_data(data)
+      save_data_to_github(data)
       st.success("Veículo cadastrado com sucesso!")
       st.rerun()
     else:
@@ -441,7 +510,7 @@ with tab_vehicles:
           data["vehicles"] = [
               item for item in data["vehicles"] if item["plate"] != v["plate"]
           ]
-          save_data(data)
+          save_data_to_github(data)
           st.success(f"Veículo {v['plate']} excluído com sucesso!")
           st.rerun()
 
@@ -468,7 +537,7 @@ with tab_vehicles:
               v["km"] = m_km
               v["preventive_interval"] = m_interval
               v["preventive_km"] = m_prev
-              save_data(data)
+              save_data_to_github(data)
               st.session_state[f"edit_mode_{v['plate']}"] = False
               st.success("Veículo atualizado com sucesso!")
               st.rerun()
@@ -516,7 +585,6 @@ def modal_manutencao_manual():
 
   st.session_state["last_file_manual"] = uploaded_file
 
-  # Botão de Limpar Campos Manual no histórico
   if st.button("🧹 Limpar Campos", key="clear_manual"):
     st.session_state.ai_manual = {
         "cost": 0.0,
@@ -605,7 +673,7 @@ def modal_manutencao_manual():
           interval = v.get("preventive_interval", 10000)
           v["preventive_km"] = km_val + interval
 
-    save_data(data)
+    save_data_to_github(data)
     st.success("Salvo no histórico e quilometragem atualizada com sucesso!")
     st.rerun()
 
@@ -647,7 +715,7 @@ with tab_history:
             ]
           else:
             data["history"].pop(idx)
-          save_data(data)
+          save_data_to_github(data)
           st.success("Registro excluído com sucesso!")
           st.rerun()
 
