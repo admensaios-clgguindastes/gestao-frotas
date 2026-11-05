@@ -13,17 +13,12 @@ st.set_page_config(
 )
 
 # Configurações do GitHub para persistência permanente dos dados
-GITHUB_REPO = st.secrets.get(
-    "GITHUB_REPO", "seu-usuario/seu-repositorio"
-)  # Ex: "gabriel/gestao-frotas"
-GITHUB_TOKEN = st.secrets.get(
-    "GITHUB_TOKEN", "seu_token_aqui"
-)  # Token de acesso do GitHub
+GITHUB_REPO = st.secrets.get("GITHUB_REPO", "seu-usuario/seu-repositorio")
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "seu_token_aqui")
 FILE_PATH = "fleet_data.json"
 
 
 def load_data_from_github():
-  """Carrega os dados diretamente do GitHub ou cria a estrutura inicial se não existir."""
   if GITHUB_TOKEN and GITHUB_REPO:
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
     headers = {
@@ -43,7 +38,6 @@ def load_data_from_github():
     except Exception as e:
       print(f"Erro ao ler do GitHub: {e}")
 
-  # Fallback para ficheiro local se o GitHub não estiver configurado
   if os.path.exists(FILE_PATH):
     with open(FILE_PATH, "r", encoding="utf-8") as f:
       return json.load(f), None
@@ -83,8 +77,6 @@ def load_data_from_github():
 
 
 def save_data_to_github(data_dict):
-  """Salva os dados no ficheiro local e faz o commit automático no GitHub."""
-  # Salva localmente também para garantir estabilidade imediata
   with open(FILE_PATH, "w", encoding="utf-8") as f:
     json.dump(data_dict, f, ensure_ascii=False, indent=4)
 
@@ -95,7 +87,6 @@ def save_data_to_github(data_dict):
         "Accept": "vnd.github.v3+json",
     }
 
-    # Pega o SHA atual do arquivo para poder atualizar no GitHub
     sha = None
     try:
       resp = requests.get(url, headers=headers)
@@ -126,7 +117,6 @@ def save_data_to_github(data_dict):
       print(f"Erro ao salvar no GitHub: {e}")
 
 
-# Inicialização dos dados na sessão
 if "data" not in st.session_state:
   loaded, sha_val = load_data_from_github()
   st.session_state.data = loaded
@@ -149,12 +139,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Abas de Navegação principais
-tab_dash, tab_workshop, tab_vehicles, tab_history = st.tabs([
+# Abas de Navegação principais (incluindo Relatórios)
+tab_dash, tab_workshop, tab_vehicles, tab_history, tab_reports = st.tabs([
     "📊 Painel da Frota",
     f"🛠️ Veículos na Oficina ({len(data['workshop'])})",
     "🚐 Veículos & Quilometragem",
     "📋 Histórico de Serviços",
+    "📈 Relatórios & Custos",
 ])
 
 # ---------------------------------------------------------
@@ -516,215 +507,3 @@ with tab_vehicles:
 
       if st.session_state.get(f"edit_mode_{v['plate']}", False):
         with st.form(f"form_edit_veh_{v['plate']}"):
-          st.markdown(f"**Editar Veículo: {v['plate']}**")
-          m_model = st.text_input("Modelo", value=v["model"])
-          m_driver = st.text_input("Responsável / Equipe", value=v["driver"])
-          m_km = st.number_input("KM Atual", value=v["km"])
-          m_interval = st.number_input(
-              "Intervalo KM Preventiva",
-              value=v.get("preventive_interval", 10000),
-          )
-          m_prev = st.number_input(
-              "KM da Próxima Preventiva",
-              value=v.get("preventive_km", v["km"] + 10000),
-          )
-
-          b1, b2 = st.columns(2)
-          with b1:
-            if st.form_submit_button("Salvar Alterações"):
-              v["model"] = m_model
-              v["driver"] = m_driver
-              v["km"] = m_km
-              v["preventive_interval"] = m_interval
-              v["preventive_km"] = m_prev
-              save_data_to_github(data)
-              st.session_state[f"edit_mode_{v['plate']}"] = False
-              st.success("Veículo atualizado com sucesso!")
-              st.rerun()
-          with b2:
-            if st.form_submit_button("Cancelar"):
-              st.session_state[f"edit_mode_{v['plate']}"] = False
-              st.rerun()
-
-# ---------------------------------------------------------
-# 4. ABA: HISTÓRICO DE SERVIÇOS
-# ---------------------------------------------------------
-
-
-@st.dialog("➕ Registrar Manutenção Manual")
-def modal_manutencao_manual():
-  st.markdown(
-      """
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 16px 20px; border-radius: 14px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 20px;">✨</span>
-                <div>
-                    <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal para preencher automaticamente.</div>
-                </div>
-            </div>
-        </div>
-    """,
-      unsafe_allow_html=True,
-  )
-
-  uploaded_file = st.file_uploader(
-      "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key="file_manual"
-  )
-
-  if uploaded_file:
-    if st.session_state.get("last_file_manual") != uploaded_file:
-      st.session_state.ai_manual = {
-          "cost": 320.00,
-          "supplier": "AUTO MECANICA EXPRESS",
-          "classification": "REVISÃO / PEÇAS",
-          "desc": "TROCA DE ITENS DE DESGASTE.",
-          "m_type": "Preventiva",
-      }
-      st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
-
-  st.session_state["last_file_manual"] = uploaded_file
-
-  if st.button("🧹 Limpar Campos", key="clear_manual"):
-    st.session_state.ai_manual = {
-        "cost": 0.0,
-        "supplier": "",
-        "classification": "",
-        "desc": "",
-        "m_type": "Corretiva",
-    }
-    st.success("Campos limpos com sucesso!")
-    st.rerun()
-
-  if "ai_manual" not in st.session_state:
-    st.session_state.ai_manual = {
-        "cost": 0.0,
-        "supplier": "",
-        "classification": "",
-        "desc": "",
-        "m_type": "Corretiva",
-    }
-
-  m_vals = st.session_state.ai_manual
-
-  plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
-  serv_plate_full = st.selectbox("Veículo (Placa)", plates, key="m_plate")
-  serv_type = st.selectbox(
-      "Tipo de Manutenção",
-      ["Corretiva", "Preventiva"],
-      index=1 if m_vals["m_type"] == "Preventiva" else 0,
-      key="m_type_sel",
-  )
-
-  entry_dt = st.text_input(
-      "Data / Hora de Entrada",
-      value=datetime.now().strftime("%Y-%m-%d %H:%M"),
-      key="m_in",
-  )
-  exit_dt = st.text_input(
-      "Data / Hora de Saída",
-      value=datetime.now().strftime("%Y-%m-%d %H:%M"),
-      key="m_out",
-  )
-  km_val = st.number_input("Quilometragem (KM)", min_value=0, key="m_km")
-  cost_val = st.number_input(
-      "Valor Total (R$)", min_value=0.0, value=m_vals["cost"], key="m_cost"
-  )
-  supplier = st.text_input(
-      "Fornecedor / Oficina",
-      value=m_vals["supplier"],
-      placeholder="Ex: Flancar...",
-      key="m_supp",
-  )
-  classification = st.text_input(
-      "Classificação",
-      value=m_vals["classification"],
-      placeholder="Ex: Troca de Óleo...",
-      key="m_class",
-  )
-  description = st.text_area(
-      "Descrição Detalhada",
-      value=m_vals["desc"],
-      placeholder="Descreva...",
-      key="m_desc",
-  )
-
-  if st.button("Salvar no Histórico", key="m_save"):
-    plate_code = serv_plate_full.split(" - ")[0]
-    new_hist = {
-        "id": datetime.now().strftime("%Y%m%d%H%M%S"),
-        "plate": plate_code,
-        "type": serv_type,
-        "entry_date": entry_dt,
-        "exit_date": exit_dt,
-        "km": km_val,
-        "cost": cost_val,
-        "supplier": supplier.upper(),
-        "classification": classification.upper(),
-        "description": description.upper(),
-    }
-    data["history"].append(new_hist)
-
-    for v in data["vehicles"]:
-      if v["plate"] == plate_code:
-        if km_val > v["km"]:
-          v["km"] = km_val
-        if serv_type == "Preventiva":
-          interval = v.get("preventive_interval", 10000)
-          v["preventive_km"] = km_val + interval
-
-    save_data_to_github(data)
-    st.success("Salvo no histórico e quilometragem atualizada com sucesso!")
-    st.rerun()
-
-
-with tab_history:
-  st.subheader("Histórico de Serviços & Manutenções")
-
-  if st.button("➕ Registrar Nova Manutenção Manual"):
-    modal_manutencao_manual()
-
-  st.markdown("---")
-  if not data["history"]:
-    st.info("Nenhum serviço registrado no histórico.")
-  else:
-    for idx, h in enumerate(data["history"]):
-      col_h_info, col_h_del = st.columns([6, 1])
-      with col_h_info:
-        st.markdown(
-            f"""
-                <div style="background: white; padding: 14px 18px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <b style="color: #0f172a; font-size: 14px;">🚚 Placa: {h['plate']} ({h['type']})</b>
-                        <span style="color: #475569; font-size: 12px;"><b>Valor:</b> R$ {h.get('cost', 0):,.2f}</span>
-                    </div>
-                    <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Período:</b> {h['entry_date']} até {h['exit_date']} | <b>KM:</b> {h['km']:,}</p>
-                    <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Fornecedor:</b> {h['supplier']} | <b>Classificação:</b> {h['classification']}</p>
-                    <p style="margin: 2px 0; font-size: 12px; color: #334155;"><b>Descrição:</b> {h['description']}</p>
-                </div>
-                """.replace(
-                ",", "."
-            ),
-            unsafe_allow_html=True,
-        )
-      with col_h_del:
-        if st.button("🗑️ Excluir", key=f"del_hist_{idx}"):
-          if "id" in h:
-            data["history"] = [
-                item for item in data["history"] if item.get("id") != h["id"]
-            ]
-          else:
-            data["history"].pop(idx)
-          save_data_to_github(data)
-          st.success("Registro excluído com sucesso!")
-          st.rerun()
-
-    st.markdown("---")
-    df_history = pd.DataFrame(data["history"])
-    csv = df_history.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "📥 Baixar Histórico em Excel (CSV)",
-        data=csv,
-        file_name="historico_manutencao.csv",
-        mime="text/csv",
-    )
