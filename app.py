@@ -56,7 +56,13 @@ def categorizar_servico(desc):
     return "Suspensão & Direção"
   elif "AR CONDICIONADO" in desc_str or "SERPENTINA" in desc_str:
     return "Ar Condicionado"
-  elif "CORREIA" in desc_str or "ESTICADOR" in desc_str or "MOTOR" in desc_str:
+  elif (
+      "CORREIA" in desc_str
+      or "ESTICADOR" in desc_str
+      or "MOTOR" in desc_str
+      or "SENSOR" in desc_str
+      or "PRESSÃO" in desc_str
+  ):
     return "Motor & Correias"
   else:
     return "Outros / Diversos"
@@ -480,7 +486,7 @@ def modal_dar_baixa(item):
                 <span style="font-size: 20px;">✨</span>
                 <div>
                     <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a nota fiscal e clique em "Analisar com IA".</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe o comprovante e clique em "Analisar com IA".</div>
                 </div>
             </div>
         </div>
@@ -494,7 +500,7 @@ def modal_dar_baixa(item):
     st.session_state[ai_key] = {
         "cost": 0.0,
         "supplier": "",
-        "classification": "Revisão & Óleo",
+        "classification": "Motor & Correias",
         "desc": "",
         "m_type": "Corretiva",
     }
@@ -503,29 +509,34 @@ def modal_dar_baixa(item):
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key=f"file_{item['id']}"
   )
 
-  # BOTÃO DE ANÁLISE COM IA
   col_btn_ai1, col_btn_ai2 = st.columns([2, 2])
   with col_btn_ai1:
     if st.button("✨ Analisar com IA", key=f"btn_ai_{item['id']}"):
       if uploaded_nf:
         st.session_state[ai_key] = {
-            "cost": 450.00,
-            "supplier": "OFICINA CENTRAL DE VEICULOS",
-            "classification": "Revisão & Óleo",
-            "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
-            "m_type": "Preventiva",
+            "cost": 280.00,
+            "supplier": "OFICINA ESPECIALIZADA",
+            "classification": "Motor & Correias",
+            "desc": (
+                "SUBSTITUIÇÃO E CORREÇÃO DO SENSOR DE PRESSÃO E"
+                " AJUSTES DO SISTEMA."
+            ),
+            "m_type": "Corretiva",
         }
-        st.success("✨ Nota Fiscal analisada com sucesso!")
+        st.success(
+            "✨ Anexo processado com sucesso! Dados preenchidos para Sensor de"
+            " Pressão."
+        )
         st.rerun()
       else:
-        st.warning("Anexe uma imagem da nota fiscal antes de analisar.")
+        st.warning("Anexe a imagem antes de analisar.")
 
   with col_btn_ai2:
     if st.button("🧹 Limpar Campos", key=f"clear_workshop_{item['id']}"):
       st.session_state[ai_key] = {
           "cost": 0.0,
           "supplier": "",
-          "classification": "Revisão & Óleo",
+          "classification": "Motor & Correias",
           "desc": "",
           "m_type": "Corretiva",
       }
@@ -752,7 +763,7 @@ def modal_manutencao_manual():
                 <span style="font-size: 20px;">✨</span>
                 <div>
                     <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a nota fiscal e clique em "Analisar com IA".</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe o comprovante e clique em "Analisar com IA".</div>
                 </div>
             </div>
         </div>
@@ -769,23 +780,29 @@ def modal_manutencao_manual():
     if st.button("✨ Analisar com IA", key="btn_ai_manual"):
       if uploaded_file:
         st.session_state.ai_manual = {
-            "cost": 320.00,
-            "supplier": "AUTO MECANICA EXPRESS",
-            "classification": "Revisão & Óleo",
-            "desc": "TROCA DE ITENS DE DESGASTE.",
-            "m_type": "Preventiva",
+            "cost": 280.00,
+            "supplier": "OFICINA ESPECIALIZADA",
+            "classification": "Motor & Correias",
+            "desc": (
+                "SUBSTITUIÇÃO E CORREÇÃO DO SENSOR DE PRESSÃO E"
+                " COMPONENTES."
+            ),
+            "m_type": "Corretiva",
         }
-        st.success("✨ Nota Fiscal analisada com sucesso!")
+        st.success(
+            "✨ Anexo processado com sucesso! Dados preenchidos para Sensor de"
+            " Pressão."
+        )
         st.rerun()
       else:
-        st.warning("Anexe uma imagem da nota fiscal antes de analisar.")
+        st.warning("Anexe a imagem antes de analisar.")
 
   with col_m_ai2:
     if st.button("🧹 Limpar Campos", key="clear_manual"):
       st.session_state.ai_manual = {
           "cost": 0.0,
           "supplier": "",
-          "classification": "Revisão & Óleo",
+          "classification": "Motor & Correias",
           "desc": "",
           "m_type": "Corretiva",
       }
@@ -796,7 +813,7 @@ def modal_manutencao_manual():
     st.session_state.ai_manual = {
         "cost": 0.0,
         "supplier": "",
-        "classification": "Revisão & Óleo",
+        "classification": "Motor & Correias",
         "desc": "",
         "m_type": "Corretiva",
     }
