@@ -942,10 +942,9 @@ with tab_history:
 
     if selected_cat_filter != "Todas":
       filtered_history = [
-          h
-          h
-          in filtered_history
-          if h.get("category", categorizar_servico(h.get("description", "")))
+          item
+          for item in filtered_history
+          if item.get("category", categorizar_servico(item.get("description", "")))
           == selected_cat_filter
       ]
 
