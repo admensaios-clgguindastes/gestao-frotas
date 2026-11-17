@@ -19,6 +19,17 @@ GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 FILE_PATH = "fleet_data.json"
 EXCEL_PATH = "MANUTENÇÕES CLG.xlsx"
 
+# Lista padrão de Categorias / Classificações
+LISTA_CLASSIFICACOES = [
+    "Revisão & Óleo",
+    "Pneus",
+    "Freios",
+    "Suspensão & Direção",
+    "Motor & Correias",
+    "Ar Condicionado",
+    "Outros / Diversos",
+]
+
 
 def categorizar_servico(desc):
   desc_str = str(desc).upper()
@@ -52,7 +63,6 @@ def categorizar_servico(desc):
 
 
 def load_data_from_github():
-  # 1. Tenta carregar do GitHub JSON salvo (se configurado e existir)
   if GITHUB_TOKEN and GITHUB_REPO and "/" in GITHUB_REPO:
     url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{FILE_PATH}"
     headers = {
@@ -70,7 +80,6 @@ def load_data_from_github():
     except Exception as e:
       print(f"Aviso ao ler do GitHub: {e}")
 
-  # 2. Se houver arquivo JSON local, usa ele
   if os.path.exists(FILE_PATH):
     try:
       with open(FILE_PATH, "r", encoding="utf-8") as f:
@@ -78,7 +87,6 @@ def load_data_from_github():
     except Exception:
       pass
 
-  # 3. Caso contrário, lê o Excel original como base inicial com segurança
   initial_history = []
   vehicles_dict = {}
 
@@ -435,7 +443,6 @@ def modal_registrar_entrada():
   sel_plate_full = st.selectbox("Selecione o Veículo", plates)
   entry_km = st.number_input("Quilometragem", min_value=0)
 
-  # Data e hora automáticas com opção de edição
   default_dt = datetime.now().strftime("%Y-%m-%d %H:%M")
   entry_date_str = st.text_input(
       "Data e Hora de Entrada",
@@ -473,7 +480,7 @@ def modal_dar_baixa(item):
                 <span style="font-size: 20px;">✨</span>
                 <div>
                     <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal para preencher automaticamente.</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal ou digite a descrição para classificação automática.</div>
                 </div>
             </div>
         </div>
@@ -487,7 +494,7 @@ def modal_dar_baixa(item):
     st.session_state[ai_key] = {
         "cost": 0.0,
         "supplier": "",
-        "classification": "",
+        "classification": "Revisão & Óleo",
         "desc": "",
         "m_type": "Corretiva",
     }
@@ -501,12 +508,12 @@ def modal_dar_baixa(item):
       st.session_state[ai_key] = {
           "cost": 450.00,
           "supplier": "OFICINA CENTRAL DE VEICULOS",
-          "classification": "REVISÃO / ÓLEO",
+          "classification": "Revisão & Óleo",
           "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
           "m_type": "Preventiva",
       }
       st.success(
-          "✨ Nota Fiscal analisada com IA! Dados preenchidos automaticamente."
+          "✨ Nota Fiscal analisada com IA! Classificação e descrição preenchidas."
       )
 
   st.session_state[f"last_file_{item['id']}"] = uploaded_nf
@@ -515,7 +522,7 @@ def modal_dar_baixa(item):
     st.session_state[ai_key] = {
         "cost": 0.0,
         "supplier": "",
-        "classification": "",
+        "classification": "Revisão & Óleo",
         "desc": "",
         "m_type": "Corretiva",
     }
@@ -539,17 +546,27 @@ def modal_dar_baixa(item):
   supplier = st.text_input(
       "Fornecedor / Oficina", value=vals["supplier"], key=f"supp_{item['id']}"
   )
-  classification = st.text_input(
-      "Classificação (ex: Pneus, Freios)",
-      value=vals["classification"],
-      key=f"class_{item['id']}",
-  )
+
   desc = st.text_area(
       "Descrição detalhada", value=vals["desc"], key=f"desc_{item['id']}"
   )
 
+  auto_classif = categorizar_servico(desc) if desc else vals["classification"]
+  try:
+    default_class_idx = LISTA_CLASSIFICACOES.index(auto_classif)
+  except ValueError:
+    default_class_idx = 0
+
+  classification = st.selectbox(
+      "Classificação do Serviço",
+      LISTA_CLASSIFICACOES,
+      index=default_class_idx,
+      key=f"class_{item['id']}",
+      help="Detectada automaticamente pela descrição detalhada.",
+  )
+
   if st.button("Concluir e Direcionar ao Histórico", key=f"save_{item['id']}"):
-    categoria = categorizar_servico(desc)
+    categoria_final = categorizar_servico(desc) if desc else classification
     history_item = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": item["plate"],
@@ -561,7 +578,7 @@ def modal_dar_baixa(item):
         "supplier": supplier.upper(),
         "classification": classification.upper(),
         "description": desc.upper(),
-        "category": categoria,
+        "category": categoria_final,
     }
     data["history"].append(history_item)
     data["workshop"] = [w for w in data["workshop"] if w["id"] != item["id"]]
@@ -732,7 +749,7 @@ def modal_manutencao_manual():
                 <span style="font-size: 20px;">✨</span>
                 <div>
                     <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal para preencher automaticamente.</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal ou digite a descrição para classificação automática.</div>
                 </div>
             </div>
         </div>
@@ -749,7 +766,7 @@ def modal_manutencao_manual():
       st.session_state.ai_manual = {
           "cost": 320.00,
           "supplier": "AUTO MECANICA EXPRESS",
-          "classification": "REVISÃO / PEÇAS",
+          "classification": "Revisão & Óleo",
           "desc": "TROCA DE ITENS DE DESGASTE.",
           "m_type": "Preventiva",
       }
@@ -761,7 +778,7 @@ def modal_manutencao_manual():
     st.session_state.ai_manual = {
         "cost": 0.0,
         "supplier": "",
-        "classification": "",
+        "classification": "Revisão & Óleo",
         "desc": "",
         "m_type": "Corretiva",
     }
@@ -772,7 +789,7 @@ def modal_manutencao_manual():
     st.session_state.ai_manual = {
         "cost": 0.0,
         "supplier": "",
-        "classification": "",
+        "classification": "Revisão & Óleo",
         "desc": "",
         "m_type": "Corretiva",
     }
@@ -808,22 +825,33 @@ def modal_manutencao_manual():
       placeholder="Ex: Flancar...",
       key="m_supp",
   )
-  classification = st.text_input(
-      "Classificação",
-      value=m_vals["classification"],
-      placeholder="Ex: Troca de Óleo...",
-      key="m_class",
-  )
+
   description = st.text_area(
       "Descrição Detalhada",
       value=m_vals["desc"],
-      placeholder="Descreva...",
+      placeholder="Descreva o serviço...",
       key="m_desc",
+  )
+
+  auto_class_man = (
+      categorizar_servico(description) if description else m_vals["classification"]
+  )
+  try:
+    default_man_idx = LISTA_CLASSIFICACOES.index(auto_class_man)
+  except ValueError:
+    default_man_idx = 0
+
+  classification = st.selectbox(
+      "Classificação do Serviço",
+      LISTA_CLASSIFICACOES,
+      index=default_man_idx,
+      key="m_class_sel",
+      help="Detectada automaticamente pela descrição detalhada.",
   )
 
   if st.button("Salvar no Histórico", key="m_save"):
     plate_code = serv_plate_full.split(" - ")[0]
-    categoria = categorizar_servico(description)
+    categoria = categorizar_servico(description) if description else classification
     new_hist = {
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": plate_code,
@@ -859,39 +887,140 @@ with tab_history:
     modal_manutencao_manual()
 
   st.markdown("---")
+
   if not data["history"]:
     st.info("Nenhum serviço registrado no histórico.")
   else:
-    for idx, h in enumerate(data["history"]):
-      col_h_info, col_h_del = st.columns([6, 1])
-      with col_h_info:
-        st.markdown(
-            f"""
-                <div style="background: white; padding: 14px 18px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <b style="color: #0f172a; font-size: 14px;">🚚 Placa: {h['plate']} ({h['type']})</b>
-                        <span style="color: #475569; font-size: 12px;"><b>Valor:</b> R$ {h.get('cost', 0):,.2f}</span>
-                    </div>
-                    <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Período:</b> {h['entry_date']} até {h['exit_date']} | <b>KM:</b> {h['km']:,}</p>
-                    <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Fornecedor:</b> {h['supplier']} | <b>Classificação:</b> {h['classification']}</p>
-                    <p style="margin: 2px 0; font-size: 12px; color: #334155;"><b>Descrição:</b> {h['description']}</p>
-                </div>
-                """.replace(
-                ",", "."
-            ),
-            unsafe_allow_html=True,
+    # FILTROS E ORDENAÇÃO NO TOPO DO HISTÓRICO
+    with st.container():
+      st.markdown("#### 🔍 Filtros & Ordenação")
+      fc1, fc2, fc3, fc4 = st.columns(4)
+
+      # Filtro por Placa
+      all_plates = sorted(list(set(h["plate"] for h in data["history"])))
+      selected_plate_filter = fc1.selectbox(
+          "Filtrar por Placa", ["Todas"] + all_plates
+      )
+
+      # Filtro por Tipo (Preventiva / Corretiva)
+      selected_type_filter = fc2.selectbox(
+          "Tipo de Manutenção", ["Todos", "Preventiva", "Corretiva"]
+      )
+
+      # Filtro por Categoria
+      selected_cat_filter = fc3.selectbox(
+          "Categoria", ["Todas"] + LISTA_CLASSIFICACOES
+      )
+
+      # Ordenação
+      sort_option = fc4.selectbox(
+          "Ordenar por",
+          [
+              "Mais Recentes (Data)",
+              "Mais Antigos (Data)",
+              "Maior Valor (R$)",
+              "Menor Valor (R$)",
+              "Placa (A-Z)",
+              "Maior Quilometragem (KM)",
+          ],
+      )
+
+    st.markdown("---")
+
+    # Aplicando os Filtros
+    filtered_history = data["history"].copy()
+
+    if selected_plate_filter != "Todas":
+      filtered_history = [
+          h for h in filtered_history if h["plate"] == selected_plate_filter
+      ]
+
+    if selected_type_filter != "Todos":
+      filtered_history = [
+          h for h in filtered_history if h["type"] == selected_type_filter
+      ]
+
+    if selected_cat_filter != "Todas":
+      filtered_history = [
+          h
+          h
+          in filtered_history
+          if h.get("category", categorizar_servico(h.get("description", "")))
+          == selected_cat_filter
+      ]
+
+    # Aplicando a Ordenação
+    if sort_option == "Mais Recentes (Data)":
+      filtered_history = sorted(
+          filtered_history, key=lambda x: str(x.get("entry_date", "")), reverse=True
+      )
+    elif sort_option == "Mais Antigos (Data)":
+      filtered_history = sorted(
+          filtered_history, key=lambda x: str(x.get("entry_date", ""))
+      )
+    elif sort_option == "Maior Valor (R$)":
+      filtered_history = sorted(
+          filtered_history,
+          key=lambda x: float(x.get("cost", 0) or 0),
+          reverse=True,
+      )
+    elif sort_option == "Menor Valor (R$)":
+      filtered_history = sorted(
+          filtered_history, key=lambda x: float(x.get("cost", 0) or 0)
+      )
+    elif sort_option == "Placa (A-Z)":
+      filtered_history = sorted(filtered_history, key=lambda x: str(x.get("plate", "")))
+    elif sort_option == "Maior Quilometragem (KM)":
+      filtered_history = sorted(
+          filtered_history, key=lambda x: int(x.get("km", 0) or 0), reverse=True
+      )
+
+    st.caption(
+        f"Exibindo {len(filtered_history)} de {len(data['history'])} registos"
+        " encontrados."
+    )
+
+    if not filtered_history:
+      st.warning(
+          "Nenhum registro encontrado com os filtros selecionados."
+      )
+    else:
+      for idx, h in enumerate(filtered_history):
+        col_h_info, col_h_del = st.columns([6, 1])
+        cat_badge = h.get(
+            "category", categorizar_servico(h.get("description", ""))
         )
-      with col_h_del:
-        if st.button("🗑️ Excluir", key=f"del_hist_{idx}"):
-          if "id" in h:
-            data["history"] = [
-                item for item in data["history"] if item.get("id") != h["id"]
-            ]
-          else:
-            data["history"].pop(idx)
-          save_data_to_github(data)
-          st.success("Registro excluído com sucesso!")
-          st.rerun()
+        with col_h_info:
+          st.markdown(
+              f"""
+                    <div style="background: white; padding: 14px 18px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div>
+                                <b style="color: #0f172a; font-size: 14px;">🚚 Placa: {h['plate']} ({h['type']})</b>
+                                <span style="background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; margin-left: 8px;">{cat_badge}</span>
+                            </div>
+                            <span style="color: #059669; font-size: 13px; font-weight: bold;">R$ {h.get('cost', 0):,.2f}</span>
+                        </div>
+                        <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Período:</b> {h['entry_date']} até {h['exit_date']} | <b>KM:</b> {h['km']:,}</p>
+                        <p style="margin: 2px 0; font-size: 12px; color: #475569;"><b>Fornecedor:</b> {h['supplier']} | <b>Classificação:</b> {h['classification']}</p>
+                        <p style="margin: 2px 0; font-size: 12px; color: #334155;"><b>Descrição:</b> {h['description']}</p>
+                    </div>
+                    """.replace(
+                  ",", "."
+              ),
+              unsafe_allow_html=True,
+          )
+        with col_h_del:
+          if st.button("🗑️ Excluir", key=f"del_hist_{h.get('id', idx)}"):
+            if "id" in h:
+              data["history"] = [
+                  item for item in data["history"] if item.get("id") != h["id"]
+              ]
+            else:
+              data["history"].pop(idx)
+            save_data_to_github(data)
+            st.success("Registro excluído com sucesso!")
+            st.rerun()
 
     st.markdown("---")
     df_history = pd.DataFrame(data["history"])
