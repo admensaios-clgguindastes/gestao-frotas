@@ -480,7 +480,7 @@ def modal_dar_baixa(item):
                 <span style="font-size: 20px;">✨</span>
                 <div>
                     <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal ou digite a descrição para classificação automática.</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a nota fiscal e clique em "Analisar com IA".</div>
                 </div>
             </div>
         </div>
@@ -503,31 +503,34 @@ def modal_dar_baixa(item):
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key=f"file_{item['id']}"
   )
 
-  if uploaded_nf:
-    if st.session_state.get(f"last_file_{item['id']}") != uploaded_nf:
+  # BOTÃO DE ANÁLISE COM IA
+  col_btn_ai1, col_btn_ai2 = st.columns([2, 2])
+  with col_btn_ai1:
+    if st.button("✨ Analisar com IA", key=f"btn_ai_{item['id']}"):
+      if uploaded_nf:
+        st.session_state[ai_key] = {
+            "cost": 450.00,
+            "supplier": "OFICINA CENTRAL DE VEICULOS",
+            "classification": "Revisão & Óleo",
+            "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
+            "m_type": "Preventiva",
+        }
+        st.success("✨ Nota Fiscal analisada com sucesso!")
+        st.rerun()
+      else:
+        st.warning("Anexe uma imagem da nota fiscal antes de analisar.")
+
+  with col_btn_ai2:
+    if st.button("🧹 Limpar Campos", key=f"clear_workshop_{item['id']}"):
       st.session_state[ai_key] = {
-          "cost": 450.00,
-          "supplier": "OFICINA CENTRAL DE VEICULOS",
+          "cost": 0.0,
+          "supplier": "",
           "classification": "Revisão & Óleo",
-          "desc": "SERVIÇO DE MANUTENÇÃO E TROCA DE ÓLEO.",
-          "m_type": "Preventiva",
+          "desc": "",
+          "m_type": "Corretiva",
       }
-      st.success(
-          "✨ Nota Fiscal analisada com IA! Classificação e descrição preenchidas."
-      )
-
-  st.session_state[f"last_file_{item['id']}"] = uploaded_nf
-
-  if st.button("🧹 Limpar Campos", key=f"clear_workshop_{item['id']}"):
-    st.session_state[ai_key] = {
-        "cost": 0.0,
-        "supplier": "",
-        "classification": "Revisão & Óleo",
-        "desc": "",
-        "m_type": "Corretiva",
-    }
-    st.success("Campos limpos com sucesso!")
-    st.rerun()
+      st.success("Campos limpos com sucesso!")
+      st.rerun()
 
   vals = st.session_state[ai_key]
 
@@ -749,7 +752,7 @@ def modal_manutencao_manual():
                 <span style="font-size: 20px;">✨</span>
                 <div>
                     <div style="font-weight: bold; font-size: 14px; color: white !important;">Preenchimento Inteligente por IA</div>
-                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a Nota Fiscal ou digite a descrição para classificação automática.</div>
+                    <div style="font-size: 12px; color: #e0e7ff !important;">Anexe a nota fiscal e clique em "Analisar com IA".</div>
                 </div>
             </div>
         </div>
@@ -761,29 +764,33 @@ def modal_manutencao_manual():
       "Anexar Nota Fiscal / O.S.", type=["png", "jpg", "jpeg"], key="file_manual"
   )
 
-  if uploaded_file:
-    if st.session_state.get("last_file_manual") != uploaded_file:
+  col_m_ai1, col_m_ai2 = st.columns([2, 2])
+  with col_m_ai1:
+    if st.button("✨ Analisar com IA", key="btn_ai_manual"):
+      if uploaded_file:
+        st.session_state.ai_manual = {
+            "cost": 320.00,
+            "supplier": "AUTO MECANICA EXPRESS",
+            "classification": "Revisão & Óleo",
+            "desc": "TROCA DE ITENS DE DESGASTE.",
+            "m_type": "Preventiva",
+        }
+        st.success("✨ Nota Fiscal analisada com sucesso!")
+        st.rerun()
+      else:
+        st.warning("Anexe uma imagem da nota fiscal antes de analisar.")
+
+  with col_m_ai2:
+    if st.button("🧹 Limpar Campos", key="clear_manual"):
       st.session_state.ai_manual = {
-          "cost": 320.00,
-          "supplier": "AUTO MECANICA EXPRESS",
+          "cost": 0.0,
+          "supplier": "",
           "classification": "Revisão & Óleo",
-          "desc": "TROCA DE ITENS DE DESGASTE.",
-          "m_type": "Preventiva",
+          "desc": "",
+          "m_type": "Corretiva",
       }
-      st.success("✨ Nota Fiscal analisada com IA! Dados preenchidos abaixo.")
-
-  st.session_state["last_file_manual"] = uploaded_file
-
-  if st.button("🧹 Limpar Campos", key="clear_manual"):
-    st.session_state.ai_manual = {
-        "cost": 0.0,
-        "supplier": "",
-        "classification": "Revisão & Óleo",
-        "desc": "",
-        "m_type": "Corretiva",
-    }
-    st.success("Campos limpos com sucesso!")
-    st.rerun()
+      st.success("Campos limpos com sucesso!")
+      st.rerun()
 
   if "ai_manual" not in st.session_state:
     st.session_state.ai_manual = {
@@ -891,28 +898,20 @@ with tab_history:
   if not data["history"]:
     st.info("Nenhum serviço registrado no histórico.")
   else:
-    # FILTROS E ORDENAÇÃO NO TOPO DO HISTÓRICO
     with st.container():
       st.markdown("#### 🔍 Filtros & Ordenação")
       fc1, fc2, fc3, fc4 = st.columns(4)
 
-      # Filtro por Placa
       all_plates = sorted(list(set(h["plate"] for h in data["history"])))
       selected_plate_filter = fc1.selectbox(
           "Filtrar por Placa", ["Todas"] + all_plates
       )
-
-      # Filtro por Tipo (Preventiva / Corretiva)
       selected_type_filter = fc2.selectbox(
           "Tipo de Manutenção", ["Todos", "Preventiva", "Corretiva"]
       )
-
-      # Filtro por Categoria
       selected_cat_filter = fc3.selectbox(
           "Categoria", ["Todas"] + LISTA_CLASSIFICACOES
       )
-
-      # Ordenação
       sort_option = fc4.selectbox(
           "Ordenar por",
           [
@@ -927,7 +926,6 @@ with tab_history:
 
     st.markdown("---")
 
-    # Aplicando os Filtros
     filtered_history = data["history"].copy()
 
     if selected_plate_filter != "Todas":
@@ -948,7 +946,6 @@ with tab_history:
           == selected_cat_filter
       ]
 
-    # Aplicando a Ordenação
     if sort_option == "Mais Recentes (Data)":
       filtered_history = sorted(
           filtered_history, key=lambda x: str(x.get("entry_date", "")), reverse=True
