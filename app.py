@@ -434,6 +434,15 @@ def modal_registrar_entrada():
   plates = [f"{v['plate']} - {v['model']}" for v in data["vehicles"]]
   sel_plate_full = st.selectbox("Selecione o Veículo", plates)
   entry_km = st.number_input("Quilometragem", min_value=0)
+
+  # Data e hora automáticas com opção de edição
+  default_dt = datetime.now().strftime("%Y-%m-%d %H:%M")
+  entry_date_str = st.text_input(
+      "Data e Hora de Entrada",
+      value=default_dt,
+      help="Preenchido automaticamente. Você pode alterar se precisar.",
+  )
+
   reason = st.text_area("Motivo / Problema Relatado")
 
   if st.button("Confirmar Entrada"):
@@ -442,7 +451,7 @@ def modal_registrar_entrada():
         "id": datetime.now().strftime("%Y%m%d%H%M%S"),
         "plate": plate_code,
         "km": entry_km,
-        "entry_date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "entry_date": entry_date_str,
         "reason": reason,
     }
     data["workshop"].append(new_entry)
